@@ -136,7 +136,7 @@ async function fetchGoogleFontCSS(
     const matches = [...css.matchAll(urlRegex)];
 
     for (const match of matches) {
-      const [fullMatch, fontUrl, fontFormat] = match;
+      const [, fontUrl, fontFormat] = match;
 
       try {
         // Fetch the font file
@@ -365,7 +365,7 @@ export async function GET(req: NextRequest) {
           },
         ];
       }
-    } catch (error) {
+    } catch {
       return new NextResponse(
         JSON.stringify({ error: "Invalid lines parameter" }),
         { status: 400 }
@@ -433,7 +433,7 @@ export async function GET(req: NextRequest) {
             const charWidth = advanceWidth * scale;
             return charWidth + letterSpacingPx;
           }
-        } catch (e) {
+        } catch {
           // Fall through to approximation
         }
       }

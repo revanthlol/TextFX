@@ -204,22 +204,6 @@ export default function SVGGenerator() {
     };
 
     /**
-     * Helper function to check if a text line uses default values
-     */
-    const isLineUsingDefaults = (line: TextLine): boolean => {
-        return (
-            line.font === DEFAULT_VALUES.font &&
-            line.color === DEFAULT_VALUES.color &&
-            line.fontSize === DEFAULT_VALUES.fontSize &&
-            line.letterSpacing === DEFAULT_VALUES.letterSpacing &&
-            line.typingSpeed === DEFAULT_VALUES.typingSpeed &&
-            line.deleteSpeed === DEFAULT_VALUES.deleteSpeed &&
-            line.fontWeight === DEFAULT_VALUES.fontWeight &&
-            line.lineHeight === DEFAULT_VALUES.lineHeight
-        );
-    };
-
-    /**
      * Create a minimal text line object with only non-default values
      * Convert char/s to s/char for API compatibility
      */
