@@ -1,29 +1,14 @@
-<p  align="center">
-  <h1 align="center">TypingSVG</h1>
+<p align="center">
+  <h1 align="center">TextFX</h1>
 </p>
   
 <p align="center">
-  <img src="typing-svg.svg" alt="TypingSVG-quote" style="display: block; margin: 0 auto;">
-</p>
-
-<p align="center">
-    <a href="https://nextjs.org/">
-        <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js">
-    </a>
-    <a href="https://reactjs.org/">
-        <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React">
-    </a>
-    <a href="https://www.typescriptlang.org/">
-        <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
-    </a>
-    <a href="https://tailwindcss.com/">
-        <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
-    </a>
+  <img src="textfx.svg" alt="TextFX Demo" style="display: block; margin: 0 auto;">
 </p>
 
 ## Features
 
-There are other typing-SVG projects out there — but TypingSVG focuses on flexibility and precision:
+There are other typing-SVG projects out there — but **TextFX** focuses on flexibility, precision, and modern design:
 
 - **Full Google Fonts support**: Use any font available on Google Fonts. Specify the font family name per-line (e.g. `"Roboto"`, `"Bitcount Ink"`); the server will fetch and inline the font files so the SVG renders the same everywhere.
 - **Per-line customization**: Set font, color, fontSize, letterSpacing, typingSpeed and deleteSpeed for each line independently.
@@ -38,41 +23,41 @@ There are other typing-SVG projects out there — but TypingSVG focuses on flexi
 
 Short: **more customization, more control, and more shareable animated text** 🎨
 
-
-## Live Demo & Preview
-[![DEMO_GIF](https://github.com/user-attachments/assets/e37cb962-57d3-430b-a4ed-717f57495243)](https://typingsvg.vercel.app/)
-Live demo: https://typingsvg.vercel.app/
-
 ## How to Use
-1. Visit the site: [typingsvg.vercel.app](https://typingsvg.vercel.app/)
+1. Run locally or deploy your instance.
 2. Enter your text (press Enter to create line breaks — multiple spaces are preserved).
 3. Tweak fonts, colors, speeds and cursor; preview updates live.
 4. Copy the generated URL or download the SVG and embed it anywhere (README, profile, blog, social, etc.).
 5. Star this repo ~ 😄
 
 ## Deploy It Yourself
-Since this project is hosted on a free Vercel account, resources are limited. To ensure optimal performance and availability, it's recommended to deploy TypingSVG on your own. Here's how:
+To ensure optimal performance and availability, you can deploy TextFX on your own:
 
-1. Sign in or create a Vercel account at [vercel](https://vercel.com/).
+1. Sign in or create a Vercel account at [vercel.com](https://vercel.com/).
 
-2. Click the "Deploy to Vercel" button below
+2. Click the "Deploy to Vercel" button below:
 
-    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FwhiteSHADOW1234%2FTypingSVG)
+    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frevanthlol%2FTextFX)
 
 3. Follow the prompts to deploy the application to your Vercel account.
 
-## Run locally
+## Run Locally
 Prerequisites: Node v18+, npm.
-1. Clone this repo with the following command:
+
+1. Clone this repo:
+    ```bash
+    git clone https://github.com/revanthlol/TextFX.git
+    cd TextFX
     ```
-    git clone https://github.com/whiteSHADOW1234/TypingSVG.git
-    cd TypingSVG
-    ```
-2. Install dependencies
-    ```
+2. Install dependencies:
+    ```bash
     npm install
     ```
-3. Start the dev server with `npm run dev`, then the app will be available at `http://localhost:3000`.
+3. Start the dev server:
+    ```bash
+    npm run dev
+    ```
+    Then open `http://localhost:3000`.
 
 ## API Options
 
@@ -81,7 +66,7 @@ The SVG is generated via the `/api/svg` endpoint. Customize it with query parame
 | Parameter | Description | Default |
 |---|---|---|
 | `lines` | **Preferred** — JSON array of line objects. Each must include `text` and may include per-line style overrides. Use `\n` in text for internal line breaks.| `lines=[{"text":"Hello, World!"},{"text":"And Emojis! 😀🚀"}]`|
-| `text` | **Legacy (deprecated)** —Text to be typed. Use `;` to separate lines. Prefer lines. | `Hello, World!;And Emojis! 😀🚀` |
+| `text` | **Legacy (deprecated)** — Text to be typed. Use `;` to separate lines. Prefer lines. | `Hello, World!;And Emojis! 😀🚀` |
 | `font` | Font family for the text. | `Courier Prime` |
 | `color` | Text color in hex format. | `#000000` |
 | `backgroundColor` | Background color in hex format. | `#ffffff` |
@@ -103,29 +88,24 @@ The SVG is generated via the `/api/svg` endpoint. Customize it with query parame
 
 **Notes**
 
-- Per-line overrides in lines take precedence over global parameters.
-- Always URL-encode the lines JSON when you put it into a query string — this is required for `\n`, emojis and other special characters. (The demo UI encodes for you automatically.)
+- Per-line overrides in `lines` take precedence over global parameters.
+- Always URL-encode the `lines` JSON when you put it into a query string — this is required for `\n`, emojis and other special characters. (The demo UI encodes for you automatically.)
 - Emojis are supported; they are treated as single graphemes for layout.
 
 **Basic Example (readable form):**  
 ```
-https://typingsvg.vercel.app/api/svg?lines=[{"text":"Hello,+World!"}]
+/api/svg?lines=[{"text":"Hello,+World!"}]
 ```
 
-##  Credits & Inspiration
+## Credits & Inspiration
 
-This project stems from a deep admiration for [DenverCoder1’s readme-typing-svg](https://github.com/DenverCoder1/readme-typing-svg)
-—a clever, widely embraced tool that brought typing animations to README files. While using it, I encountered several limitations: the lack of genuine multi-line support, a fixed delete speed, and handling blank spaces felt awkward—requiring workarounds that disrupted the creative flow. That frustration sparked the idea for **TypingSVG**—a smoother, more flexible evolution designed to bring back control and clarity to formatting.
+**TextFX** is inspired by **TypingSVG** and [DenverCoder1’s readme-typing-svg](https://github.com/DenverCoder1/readme-typing-svg) — rebuilt and improved with enhanced features, fine-tuned multi-line rendering, per-line customization, and full layout control.
 
-A heartfelt, huge thank you to [DenverCoder1](https://github.com/DenverCoder1) for sparking the idea. TypingSVG builds upon that original spark. ❤️
-
-## Star History
-[![Star History Chart](https://api.star-history.com/svg?repos=whiteSHADOW1234/TypingSVG&type=Date)](https://www.star-history.com/#whiteSHADOW1234/TypingSVG&Date)
+A special thanks to the original creators whose work laid the foundation and inspired this project. ❤️
 
 ## Contributing
 
-We welcome contributions to TypingSVG! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) file for more details on how to get started, report bugs, request features, and submit pull requests.
-
+We welcome contributions to TextFX! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) file for more details on how to get started, report bugs, request features, and submit pull requests.
 
 ## License
 

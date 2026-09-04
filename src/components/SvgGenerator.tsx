@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Moon, Sun, TextCursor, Eye, Code, Palette, Plus, Minus, Download, Copy, Check, ChevronDown, ChevronUp, Github, Star } from 'lucide-react';
+import FontCombobox from './FontCombobox';
 
 interface TextLine {
     text: string;
@@ -86,7 +87,7 @@ export default function SVGGenerator() {
         { value: 'blank', label: 'Blank (No Cursor)', icon: '○' }
     ];
 
-    const GITHUB_REPO = 'whiteSHADOW1234/TypingSVG';
+    const GITHUB_REPO = 'revanthlol/TextFX';
 
     // Fetch GitHub stars
     useEffect(() => {
@@ -275,7 +276,7 @@ export default function SVGGenerator() {
             const url = window.URL.createObjectURL(svgBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'typing-svg.svg';
+            a.download = 'textfx.svg';
             a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
@@ -319,7 +320,7 @@ export default function SVGGenerator() {
                                 <TextCursor className="w-6 h-6 text-white" />
                             </div>
                             <h1 className={`text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r ${isDarkMode ? 'from-yellow-400 to-yellow-200' : 'from-blue-600 to-purple-600'} bg-clip-text text-transparent`}>
-                                Typing SVG Generator
+                                TextFX Generator
                             </h1>
                         </div>
                         
@@ -476,15 +477,18 @@ export default function SVGGenerator() {
                                                 </div>
                                                 
                                                 {/* Font and Size */}
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <InputField 
-                                                        label="Font Family" 
-                                                        type="text" 
-                                                        value={line.font} 
-                                                        onChange={(e) => updateTextLine(index, 'font', e.target.value)}
-                                                        isDarkMode={isDarkMode}
-                                                        size="small"
-                                                    />
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className={`block text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                            Font Family
+                                                        </label>
+                                                        <FontCombobox 
+                                                            value={line.font} 
+                                                            onChange={(fontFamily) => updateTextLine(index, 'font', fontFamily)}
+                                                            sampleText={line.text}
+                                                            isDarkMode={isDarkMode}
+                                                        />
+                                                    </div>
                                                     <InputField 
                                                         label="Font Size" 
                                                         type="number" 
@@ -839,8 +843,8 @@ export default function SVGGenerator() {
                             </div>
                             <div className="space-y-4">
                                 <UrlBox label="URL" value={fullSvgUrl} isDarkMode={isDarkMode} showNotification={showNotification} />
-                                <UrlBox label="Markdown" value={`[![Typing SVG](${fullSvgUrl})](https://github.com/whiteSHADOW1234/TypingSVG)`} isDarkMode={isDarkMode} showNotification={showNotification} />
-                                <UrlBox label="HTML" value={`<a href="https://github.com/whiteSHADOW1234/TypingSVG"><img src="${fullSvgUrl}" alt="Typing SVG" /></a>`} isDarkMode={isDarkMode} showNotification={showNotification} />
+                                <UrlBox label="Markdown" value={`[![TextFX](${fullSvgUrl})](https://github.com/revanthlol/TextFX)`} isDarkMode={isDarkMode} showNotification={showNotification} />
+                                <UrlBox label="HTML" value={`<a href="https://github.com/revanthlol/TextFX"><img src="${fullSvgUrl}" alt="TextFX" /></a>`} isDarkMode={isDarkMode} showNotification={showNotification} />
                             </div>
                         </div>
                     </div>

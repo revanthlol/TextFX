@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TypingSVG",
-  description: "TypingSVG — generate animated typing SVGs with multiline styling, per-line fonts, preserved blank-space formatting, multiple cursor styles, and adjustable typing & delete speeds for full control.",
+  title: "TextFX - Animated Typing SVG Generator",
+  description: "TextFX — generate animated typing SVGs with multiline styling, per-line fonts, preserved blank-space formatting, multiple cursor styles, and adjustable typing & delete speeds for full control.",
 };
 
 export default function RootLayout({

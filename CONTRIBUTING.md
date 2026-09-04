@@ -1,6 +1,6 @@
-# Contributing to Typing SVG
+# Contributing to TextFX
 
-Thank you for your interest in contributing to Typing SVG! We appreciate your help in making this project better.
+Thank you for your interest in contributing to TextFX! We appreciate your help in making this project better.
 
 ## Table of Contents
 
@@ -19,8 +19,8 @@ To get a local copy of the project up and running, follow these steps:
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/whiteSHADOW1234/typing-svg.git
-    cd typing-svg
+    git clone https://github.com/revanthlol/TextFX.git
+    cd TextFX
     ```
 
 2.  **Install dependencies:**
@@ -51,7 +51,7 @@ It's recommended to use a Node.js version manager like `nvm` (Node Version Manag
 
 ### Reporting Bugs
 
-If you find a bug, please open an issue on our [GitHub Issues page](https://github.com/whiteSHADOW1234/typing-svg/issues). When reporting a bug, please include:
+If you find a bug, please open an issue on our [GitHub Issues page](https://github.com/revanthlol/TextFX/issues). When reporting a bug, please include:
 
 -   A clear and concise description of the bug.
 -   Steps to reproduce the behavior.
@@ -61,7 +61,7 @@ If you find a bug, please open an issue on our [GitHub Issues page](https://gith
 
 ### Requesting Features
 
-If you have an idea for a new feature or enhancement, please open an issue on our [GitHub Issues page](https://github.com/whiteSHADOW1234/typing-svg/issues). Describe your idea clearly and explain why you think it would be a valuable addition to the project.
+If you have an idea for a new feature or enhancement, please open an issue on our [GitHub Issues page](https://github.com/revanthlol/TextFX/issues). Describe your idea clearly and explain why you think it would be a valuable addition to the project.
 
 ### Submitting Pull Requests
 
