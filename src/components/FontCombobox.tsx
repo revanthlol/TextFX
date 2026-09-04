@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue } from 'react';
 import { 
   Search, 
   Check, 
@@ -12,7 +12,7 @@ import {
   Sparkles, 
   Code2, 
   PenTool, 
-  Compass 
+  Compass
 } from 'lucide-react';
 import { 
   ALL_FONTS, 
@@ -28,7 +28,6 @@ import {
 interface FontComboboxProps {
   value: string;
   onChange: (fontFamily: string) => void;
-  sampleText?: string;
   isDarkMode?: boolean;
   className?: string;
   placeholder?: string;
@@ -44,10 +43,12 @@ const CATEGORIES: { id: FontCategory; label: string; icon: React.ReactNode }[] =
   { id: 'display', label: 'Display', icon: <Sparkles className="w-3.5 h-3.5 text-orange-500" /> }
 ];
 
+const INITIAL_VISIBLE_COUNT = 40;
+const BATCH_SIZE = 30;
+
 export default function FontCombobox({
   value,
   onChange,
-  sampleText = 'TextFX',
   isDarkMode = false,
   className = '',
   placeholder = 'Select font...'
@@ -58,25 +59,28 @@ export default function FontCombobox({
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recents, setRecents] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+
+  const deferredSearch = useDeferredValue(search);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Initialize favorites and recents from localStorage
+  // Initialize favorites and recents
   useEffect(() => {
     setFavorites(getStoredFavorites());
     setRecents(getStoredRecent());
   }, []);
 
-  // Preload preview for current selected font
+  // Preload font preview for currently selected font
   useEffect(() => {
     if (value) {
-      loadFontPreview(value, sampleText);
+      loadFontPreview(value);
     }
-  }, [value, sampleText]);
+  }, [value]);
 
-  // Handle clicking outside to close
+  // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -92,16 +96,17 @@ export default function FontCombobox({
   // Focus search input when opening
   useEffect(() => {
     if (isOpen) {
+      setVisibleCount(INITIAL_VISIBLE_COUNT);
       setTimeout(() => {
         searchInputRef.current?.focus();
-      }, 50);
+      }, 30);
     } else {
       setSearch('');
       setActiveIndex(0);
     }
   }, [isOpen]);
 
-  // Filter fonts based on category and search query
+  // Filter fonts with memoization
   const filteredFonts = useMemo(() => {
     let list: FontItem[] = ALL_FONTS;
 
@@ -117,25 +122,44 @@ export default function FontCombobox({
       list = ALL_FONTS.filter((f) => f.category === selectedCategory);
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase().trim();
       list = list.filter((f) => f.family.toLowerCase().includes(q));
     }
 
     return list;
-  }, [selectedCategory, search, favorites, recents]);
+  }, [selectedCategory, deferredSearch, favorites, recents]);
 
-  // Load preview fonts for first visible slice
+  // Lazy render slice
+  const visibleFonts = useMemo(() => {
+    return filteredFonts.slice(0, visibleCount);
+  }, [filteredFonts, visibleCount]);
+
+  // Load preview fonts for visible slice only
   useEffect(() => {
     if (!isOpen) return;
-    const slice = filteredFonts.slice(0, 25);
-    slice.forEach((f) => loadFontPreview(f.family, sampleText));
-  }, [isOpen, filteredFonts, sampleText]);
+    const slice = visibleFonts.slice(0, 25);
+    slice.forEach((f) => loadFontPreview(f.family));
+  }, [isOpen, visibleFonts]);
 
-  // Reset active index on filter change
+  // Reset pagination & active index on filter changes
   useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
     setActiveIndex(0);
-  }, [search, selectedCategory]);
+    if (listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, [deferredSearch, selectedCategory]);
+
+  // Infinite scroll handler
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 150) {
+      if (visibleCount < filteredFonts.length) {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filteredFonts.length));
+      }
+    }
+  };
 
   const handleSelect = (fontFamily: string) => {
     onChange(fontFamily);
@@ -162,7 +186,7 @@ export default function FontCombobox({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex((prev) => (prev < filteredFonts.length - 1 ? prev + 1 : prev));
+      setActiveIndex((prev) => (prev < visibleFonts.length - 1 ? prev + 1 : prev));
       scrollActiveIntoView(activeIndex + 1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -170,8 +194,8 @@ export default function FontCombobox({
       scrollActiveIntoView(activeIndex - 1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredFonts[activeIndex]) {
-        handleSelect(filteredFonts[activeIndex].family);
+      if (visibleFonts[activeIndex]) {
+        handleSelect(visibleFonts[activeIndex].family);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -188,10 +212,6 @@ export default function FontCombobox({
     }
   };
 
-  const cleanSample = (sampleText && sampleText.trim().length > 0) 
-    ? (sampleText.length > 24 ? `${sampleText.slice(0, 24)}...` : sampleText) 
-    : 'TextFX';
-
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
       {/* Trigger Button */}
@@ -199,7 +219,7 @@ export default function FontCombobox({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 outline-none ${
+        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-sm font-medium transition-all duration-150 outline-none ${
           isDarkMode
             ? 'bg-gray-800/90 border-gray-700 text-gray-100 hover:border-gray-500 hover:bg-gray-800 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/30'
             : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400 hover:bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30'
@@ -210,7 +230,7 @@ export default function FontCombobox({
         <div className="flex items-center gap-2.5 truncate">
           <Type className={`w-4 h-4 shrink-0 ${isDarkMode ? 'text-yellow-400' : 'text-blue-500'}`} />
           <span 
-            className="truncate text-sm"
+            className="truncate text-base"
             style={{ fontFamily: value ? `'${value}', sans-serif` : 'inherit' }}
           >
             {value || placeholder}
@@ -220,36 +240,36 @@ export default function FontCombobox({
           {favorites.includes(value) && (
             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
           )}
-          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
         </div>
       </button>
 
       {/* Popover Dropdown */}
       {isOpen && (
         <div 
-          className={`absolute left-0 right-0 top-full mt-2 z-50 rounded-xl shadow-2xl border backdrop-blur-md overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-150 ${
+          className={`absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl shadow-2xl border overflow-hidden transition-all duration-100 ${
             isDarkMode 
-              ? 'bg-gray-900/98 border-gray-700 text-gray-100 shadow-black/80' 
-              : 'bg-white/98 border-gray-200 text-gray-900 shadow-xl'
+              ? 'bg-gray-900 border-gray-700 text-gray-100 shadow-black/80' 
+              : 'bg-white border-gray-200 text-gray-900 shadow-xl'
           }`}
-          style={{ width: '100%', minWidth: '320px', maxWidth: '480px' }}
+          style={{ width: '100%', minWidth: '320px', maxWidth: '440px' }}
         >
           {/* Search Header */}
-          <div className={`p-3 border-b ${isDarkMode ? 'border-gray-800 bg-gray-900/80' : 'border-gray-100 bg-gray-50/80'}`}>
+          <div className={`p-2.5 border-b ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-100 bg-gray-50'}`}>
             <div className={`relative flex items-center rounded-lg border transition-colors ${
               isDarkMode 
                 ? 'bg-gray-800 border-gray-700 focus-within:border-yellow-500' 
                 : 'bg-white border-gray-300 focus-within:border-blue-500'
             }`}>
-              <Search className={`w-4 h-4 ml-3 shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+              <Search className="w-4 h-4 ml-3 shrink-0 text-gray-400" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search Google Fonts (e.g. Fira, Inter, Roboto)..."
-                className={`w-full px-2.5 py-2 text-sm bg-transparent outline-none placeholder:text-gray-400 ${
+                placeholder="Search 1,500+ fonts (Fira, Inter, Roboto)..."
+                className={`w-full px-2.5 py-1.5 text-sm bg-transparent outline-none placeholder:text-gray-400 ${
                   isDarkMode ? 'text-gray-100' : 'text-gray-900'
                 }`}
               />
@@ -257,7 +277,7 @@ export default function FontCombobox({
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="p-1.5 mr-1 hover:opacity-75 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="p-1 mr-1 text-gray-400 hover:text-gray-200"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -265,7 +285,7 @@ export default function FontCombobox({
             </div>
 
             {/* Category Chips Bar */}
-            <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+            <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 no-scrollbar text-xs">
               {/* Starred Filter Chip */}
               <button
                 type="button"
@@ -315,20 +335,20 @@ export default function FontCombobox({
             </div>
           </div>
 
-          {/* Fonts List */}
+          {/* Fonts List (Paginated / Windowed for zero lag) */}
           <div 
             ref={listRef}
+            onScroll={handleScroll}
             className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800/60"
             role="listbox"
           >
             {filteredFonts.length === 0 ? (
-              <div className="py-10 px-4 text-center">
-                <Type className={`w-8 h-8 mx-auto mb-2 opacity-30 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                <p className="text-sm font-medium text-gray-400">No matching fonts found</p>
-                <p className="text-xs text-gray-500 mt-1">Try another search term or switch categories</p>
+              <div className="py-8 px-4 text-center">
+                <Type className={`w-6 h-6 mx-auto mb-1.5 opacity-30 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                <p className="text-xs font-medium text-gray-400">No matching fonts found</p>
               </div>
             ) : (
-              filteredFonts.map((font, idx) => {
+              visibleFonts.map((font, idx) => {
                 const isSelected = font.family.toLowerCase() === value.toLowerCase();
                 const isFavorite = favorites.includes(font.family);
                 const isFocused = idx === activeIndex;
@@ -340,11 +360,11 @@ export default function FontCombobox({
                     onClick={() => handleSelect(font.family)}
                     onMouseEnter={() => {
                       setActiveIndex(idx);
-                      loadFontPreview(font.family, sampleText);
+                      loadFontPreview(font.family);
                     }}
                     role="option"
                     aria-selected={isSelected}
-                    className={`group px-3.5 py-2.5 cursor-pointer flex items-center justify-between transition-colors ${
+                    className={`group px-3 py-2 cursor-pointer flex items-center justify-between transition-colors ${
                       isSelected
                         ? (isDarkMode ? 'bg-yellow-500/15 text-yellow-300' : 'bg-blue-50 text-blue-900')
                         : isFocused
@@ -352,36 +372,30 @@ export default function FontCombobox({
                           : (isDarkMode ? 'text-gray-200 hover:bg-gray-800/50' : 'text-gray-800 hover:bg-gray-50')
                     }`}
                   >
-                    <div className="flex-1 min-w-0 pr-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs tracking-tight truncate">
-                          {font.family}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize shrink-0 font-normal ${
-                          font.category === 'monospace'
-                            ? (isDarkMode ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/40' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
-                            : font.category === 'handwriting'
-                              ? (isDarkMode ? 'bg-pink-950 text-pink-300 border border-pink-800/40' : 'bg-pink-50 text-pink-700 border border-pink-200')
-                              : (isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500')
-                        }`}>
-                          {font.category}
-                        </span>
-                        {font.isPopular && (
-                          <span className="text-[10px] text-amber-500 font-medium shrink-0">
-                            ★ Popular
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Live Typeface Preview */}
-                      <div 
-                        className={`text-sm sm:text-base mt-1 truncate ${
-                          isSelected ? (isDarkMode ? 'text-yellow-200' : 'text-blue-700') : (isDarkMode ? 'text-gray-300' : 'text-gray-700')
-                        }`}
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      {/* Font name styled in its own typography */}
+                      <span 
+                        className="text-base sm:text-lg tracking-wide truncate font-medium"
                         style={{ fontFamily: `'${font.family}', sans-serif` }}
                       >
-                        {cleanSample}
-                      </div>
+                        {font.family}
+                      </span>
+                      
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize shrink-0 font-normal ${
+                        font.category === 'monospace'
+                          ? (isDarkMode ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
+                          : font.category === 'handwriting'
+                            ? (isDarkMode ? 'bg-pink-950/60 text-pink-300 border border-pink-800/40' : 'bg-pink-50 text-pink-700 border border-pink-200')
+                            : (isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500')
+                      }`}>
+                        {font.category}
+                      </span>
+                      
+                      {font.isPopular && (
+                        <span className="text-[10px] text-amber-500 font-medium shrink-0">
+                          ★
+                        </span>
+                      )}
                     </div>
 
                     {/* Action buttons (Favorite & Selected Checkmark) */}
@@ -396,7 +410,7 @@ export default function FontCombobox({
                             : 'text-gray-400 hover:text-amber-400 opacity-40 group-hover:opacity-100'
                         }`}
                       >
-                        <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                        <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
                       </button>
 
                       {isSelected && (
@@ -412,13 +426,13 @@ export default function FontCombobox({
           </div>
 
           {/* Footer Bar */}
-          <div className={`py-2 px-3 text-[11px] flex items-center justify-between border-t ${
+          <div className={`py-1.5 px-3 text-[11px] flex items-center justify-between border-t ${
             isDarkMode ? 'border-gray-800 bg-gray-950 text-gray-400' : 'border-gray-100 bg-gray-50 text-gray-500'
           }`}>
-            <span>{filteredFonts.length} fonts available</span>
+            <span>Showing {visibleFonts.length} of {filteredFonts.length} fonts</span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-[10px] font-mono">↑↓</kbd> navigate
-              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-[10px] font-mono">↵</kbd> select
+              <kbd className="px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-[10px] font-mono">↑↓</kbd>
+              <kbd className="ml-0.5 px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-[10px] font-mono">↵</kbd>
             </span>
           </div>
         </div>

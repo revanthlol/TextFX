@@ -469,7 +469,6 @@ export default function SVGGenerator() {
                                                         <FontCombobox 
                                                             value={line.font} 
                                                             onChange={(fontFamily) => updateTextLine(index, 'font', fontFamily)}
-                                                            sampleText={line.text}
                                                             isDarkMode={isDarkMode}
                                                         />
                                                     </div>

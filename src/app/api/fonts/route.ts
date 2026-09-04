@@ -2,46 +2,57 @@ import { NextRequest, NextResponse } from "next/server";
 import fontData from "@/data/google-fonts.json";
 import { ALL_FONTS, POPULAR_FONTS, FontItem } from "@/lib/fonts";
 
+// In-memory cache for API font data
+let cachedLiveFonts: FontItem[] | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+async function getLiveGoogleFonts(): Promise<FontItem[] | null> {
+  const apiKey = process.env.GOOGLE_FONTS_API_KEY;
+  if (!apiKey) return null;
+
+  const now = Date.now();
+  if (cachedLiveFonts && now - lastFetchTime < CACHE_TTL_MS) {
+    return cachedLiveFonts;
+  }
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}&sort=popularity`,
+      { next: { revalidate: 86400 } }
+    );
+    if (response.ok) {
+      const data = await response.json();
+      if (data.items && Array.isArray(data.items)) {
+        const popularSet = new Set(fontData.popular.map((f) => f.toLowerCase()));
+        const fonts: FontItem[] = data.items.map((item: { family: string; category: string }) => ({
+          family: item.family,
+          category: (item.category || "sans-serif") as FontItem["category"],
+          isPopular: popularSet.has(item.family.toLowerCase())
+        }));
+        cachedLiveFonts = fonts;
+        lastFetchTime = now;
+        return fonts;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to fetch live Google Fonts API, using local dataset fallback:", err);
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category")?.toLowerCase();
     const query = searchParams.get("search")?.toLowerCase().trim();
     const popularOnly = searchParams.get("popular") === "true";
-    const refresh = searchParams.get("refresh") === "true";
 
-    // Optional sync with Google Fonts Developer API if API key is provided and refresh requested
-    const apiKey = process.env.GOOGLE_FONTS_API_KEY;
-    if (refresh && apiKey) {
-      try {
-        const response = await fetch(
-          `https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}&sort=popularity`,
-          { next: { revalidate: 86400 } }
-        );
-        if (response.ok) {
-          const liveData = await response.json();
-          if (liveData.items && Array.isArray(liveData.items)) {
-            const liveFonts: FontItem[] = liveData.items.map((item: { family: string; category: string }) => ({
-              family: item.family,
-              category: (item.category || "sans-serif") as FontItem["category"],
-            }));
+    const liveFonts = await getLiveGoogleFonts();
+    const baseFonts = liveFonts || ALL_FONTS;
 
-            return NextResponse.json({
-              source: "google-fonts-developer-api",
-              total: liveFonts.length,
-              popular: fontData.popular,
-              fonts: liveFonts,
-            }, {
-              headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=43200" }
-            });
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to fetch live Google Fonts API, falling back to local dataset", err);
-      }
-    }
-
-    let result = ALL_FONTS;
+    let result = baseFonts;
 
     if (popularOnly) {
       result = POPULAR_FONTS;
@@ -54,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      source: "local-catalog",
+      source: liveFonts ? "google-fonts-api" : "local-catalog",
       total: result.length,
       categories: ["all", "popular", "monospace", "sans-serif", "serif", "handwriting", "display"],
       popular: fontData.popular,
