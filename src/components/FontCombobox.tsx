@@ -46,7 +46,7 @@ const CATEGORIES: { id: FontCategory; label: string; icon: React.ReactNode }[] =
 const INITIAL_VISIBLE_COUNT = 40;
 const BATCH_SIZE = 30;
 
-export default function FontCombobox({
+export function FontCombobox({
   value,
   onChange,
   isDarkMode = false,
@@ -440,3 +440,5 @@ export default function FontCombobox({
     </div>
   );
 }
+
+export default FontCombobox;
