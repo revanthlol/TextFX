@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateParams } from "@/lib/utils";
+import { parseGradient, getGradientCoordinates } from "@/lib/gradients";
 import * as opentype from "opentype.js";
 
 interface TextLine {
@@ -12,6 +13,8 @@ interface TextLine {
   deleteSpeed: number;
   fontWeight: string;
   lineHeight: number;
+  animationStyle?: 'typewriter' | 'fade' | 'slide-up' | 'wave' | 'glitch';
+  gradient?: string;
 }
 
 type DeletionBehavior = "stay" | "backspace" | "clear";
@@ -30,35 +33,31 @@ function parseLetterSpacing(
 
   const value = letterSpacing.toString().trim().toLowerCase();
 
-  // Extract numeric value and unit
   const match = value.match(/^([+-]?\d*\.?\d+)(em|rem|px|%)?$/);
   if (!match) {
-    // Handle special values
     if (value === "normal") return 0;
     if (value === "inherit") return 0;
-    // Default to 0 for invalid values
     return 0;
   }
 
   const numValue = parseFloat(match[1]);
-  const unit = match[2] || "em"; // Default to em if no unit
+  const unit = match[2] || "em";
 
   switch (unit) {
     case "em":
       return numValue * fontSize;
     case "rem":
-      return numValue * 16; // Assume 16px root font size
+      return numValue * 16;
     case "px":
       return numValue;
     case "%":
       return (numValue / 100) * fontSize;
     default:
-      return numValue * fontSize; // Fallback to em
+      return numValue * fontSize;
   }
 }
 
-// Helper: returns the numeric y offset (in user units) to apply to the cursor
-// relative to the text baseline/center. Positive moves it down, negative moves it up.
+// Helper: returns numeric y offset for cursor
 function getCursorYOffset(style: string, fontSize: number): number {
   switch (style) {
     case "underline":
@@ -73,35 +72,33 @@ function getCursorYOffset(style: string, fontSize: number): number {
   }
 }
 
-// Returns the svg rect string (still return the shape with a 'y' attribute – replaced later with animations)
+// Helper: returns cursor SVG shape
 function getCursorSvgShape(
   style: string,
   color: string,
   fontSize: number
 ): string {
-  const yPos = getCursorYOffset(style, fontSize);
   switch (style) {
     case "underline":
-      return `<rect y="${yPos}" width="${
-        fontSize * 0.6
-      }" height="3" fill="${color}" visibility="hidden"/>`;
+      return `<rect y="-5" width="${(fontSize * 0.6).toFixed(1)}" height="${(
+        fontSize * 0.12
+      ).toFixed(1)}" fill="${color}" visibility="hidden" />`;
     case "block":
-      return `<rect y="${yPos}" width="${fontSize * 0.6}" height="${
-        fontSize * 1.2
-      }" fill="${color}" visibility="hidden"/>`;
+      return `<rect y="-5" width="${(fontSize * 0.6).toFixed(1)}" height="${(
+        fontSize * 1.1
+      ).toFixed(1)}" fill="${color}" visibility="hidden" />`;
     case "blank":
       return "";
     case "straight":
     default:
-      return `<rect y="${yPos}" width="2.5" height="${
+      return `<rect y="-5" width="${(fontSize * 0.09).toFixed(1)}" height="${(
         fontSize * 1.2
-      }" fill="${color}" visibility="hidden"/>`;
+      ).toFixed(1)}" fill="${color}" visibility="hidden" />`;
   }
 }
 
 /**
- * Fetch Google Font CSS and convert font URLs to base64 data URIs
- * Also parse the font to extract glyph metrics
+ * Fetch Google Font CSS and font file
  */
 async function fetchGoogleFontCSS(
   fontFamily: string,
@@ -115,7 +112,6 @@ async function fetchGoogleFontCSS(
       display: "fallback",
     })}`;
 
-    // Fetch the CSS
     const response = await fetch(url, {
       headers: {
         "User-Agent":
@@ -130,7 +126,6 @@ async function fetchGoogleFontCSS(
     let css = await response.text();
     let firstFontData: ArrayBuffer | null = null;
 
-    // Find all font file URLs and convert them to base64 data URIs
     const urlRegex =
       /url\((https:\/\/fonts\.gstatic\.com[^)]+)\)\s+format\(['"]([^'"]+)['"]\)/g;
     const matches = [...css.matchAll(urlRegex)];
@@ -139,178 +134,130 @@ async function fetchGoogleFontCSS(
       const [, fontUrl, fontFormat] = match;
 
       try {
-        // Fetch the font file
         const fontResponse = await fetch(fontUrl);
         if (fontResponse.ok) {
           const fontBuffer = await fontResponse.arrayBuffer();
-          
-          // Store the first font data for parsing
           if (!firstFontData) {
             firstFontData = fontBuffer;
           }
-          
           const base64Font = Buffer.from(fontBuffer).toString("base64");
           const dataUri = `data:font/${fontFormat};base64,${base64Font}`;
-
-          // Replace the original URL with the data URI
           css = css.replace(fontUrl, dataUri);
         }
       } catch (fontError) {
-        console.warn(`Failed to fetch font file: ${fontUrl}`, fontError);
+        console.warn(`Failed to fetch/inline font file: ${fontUrl}`, fontError);
       }
     }
 
     return { css, fontData: firstFontData };
   } catch (error) {
-    console.warn(`Failed to fetch Google Font: ${fontFamily}`, error);
+    console.error(`Failed to fetch Google Font for ${fontFamily}:`, error);
     return { css: "", fontData: null };
   }
 }
 
 /**
- * Get unique fonts from text lines and fetch their CSS + font data
+ * Parse font buffer using opentype.js
+ */
+function parseFontData(fontBuffer: ArrayBuffer): opentype.Font | null {
+  try {
+    return opentype.parse(fontBuffer);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get CSS and parsed fonts for all unique fonts in textLines
  */
 async function getGoogleFontsData(textLines: TextLine[]): Promise<{
   css: string;
   fonts: Map<string, opentype.Font | null>;
 }> {
-  const uniqueFonts = new Map<string, Set<string>>();
-  let allText = "";
+  const fontMap = new Map<
+    string,
+    { weights: Set<string>; text: Set<string> }
+  >();
 
-  // Collect unique fonts with their weights and all text
-  for (const line of textLines) {
-    if (!uniqueFonts.has(line.font)) {
-      uniqueFonts.set(line.font, new Set());
+  textLines.forEach((line) => {
+    if (!fontMap.has(line.font)) {
+      fontMap.set(line.font, {
+        weights: new Set(),
+        text: new Set(),
+      });
     }
-    uniqueFonts.get(line.font)!.add(line.fontWeight || "400");
-    allText += line.text;
-  }
+    const fontInfo = fontMap.get(line.font)!;
+    fontInfo.weights.add(line.fontWeight || "400");
+    line.text.split("").forEach((char) => fontInfo.text.add(char));
+  });
 
-  // Remove duplicates from text for optimization
-  const uniqueChars = [...new Set(allText)].join("");
+  const cssPromises: Promise<{
+    font: string;
+    css: string;
+    fontData: ArrayBuffer | null;
+  }>[] = [];
 
-  const fontPromises = Array.from(uniqueFonts.entries()).map(
-    async ([fontFamily, weights]) => {
-      const weightString = Array.from(weights).join(";");
-      const result = await fetchGoogleFontCSS(fontFamily, weightString, uniqueChars);
-      
-      let parsedFont: opentype.Font | null = null;
-      if (result.fontData) {
-        try {
-          parsedFont = opentype.parse(result.fontData);
-        } catch (e) {
-          console.warn(`Failed to parse font ${fontFamily}:`, e);
-        }
-      }
-      
-      return {
-        family: fontFamily,
+  fontMap.forEach((info, font) => {
+    const text = Array.from(info.text).join("");
+    const weight = Array.from(info.weights)[0] || "400";
+    cssPromises.push(
+      fetchGoogleFontCSS(font, weight, text).then((result) => ({
+        font,
         css: result.css,
-        font: parsedFont
-      };
-    }
-  );
+        fontData: result.fontData,
+      }))
+    );
+  });
 
-  const fontResults = await Promise.all(fontPromises);
-  const cssArray = fontResults.filter(r => r.css.length > 0).map(r => r.css);
-  const fontsMap = new Map<string, opentype.Font | null>();
-  
-  fontResults.forEach(r => {
-    if (r.font) {
-      fontsMap.set(r.family, r.font);
+  const results = await Promise.all(cssPromises);
+  const combinedCSS = results.map((r) => r.css).join("\n");
+  const parsedFonts = new Map<string, opentype.Font | null>();
+
+  results.forEach((r) => {
+    if (r.fontData) {
+      parsedFonts.set(r.font, parseFontData(r.fontData));
+    } else {
+      parsedFonts.set(r.font, null);
     }
   });
 
-  return {
-    css: cssArray.join("\n"),
-    fonts: fontsMap
-  };
+  return { css: combinedCSS, fonts: parsedFonts };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const { searchParams } = url;
-    const params = validateParams(searchParams);
+    const { searchParams } = new URL(request.url);
+    const p = validateParams(searchParams);
 
-    type Params = {
-      width: number;
-      height: number;
-      font: string;
-      color: string;
-      fontSize: number;
-      letterSpacing: string | number;
-      typingSpeed: number;
-      deleteSpeed: number;
-      fontRatio: number;
-      pause: number;
-      repeat: boolean;
-      center: boolean;
-      vCenter: boolean;
-      cursorStyle: string;
-      border: boolean;
-      backgroundColor: string;
-      backgroundOpacity: number;
-      fontWeight: string;
-      text?: string;
-    };
+    const deletionBehavior = p.deletionBehavior as DeletionBehavior;
+    const pauseDuration = p.pause / 1000;
 
-    const p = params as unknown as Params;
-    const defaults = {
-      width: 600,
-      height: 120,
-      font: "Inter",
-      color: "#000000",
-      fontSize: 28,
-      letterSpacing: "0",
-      typingSpeed: 0.08, // seconds per grapheme
-      deleteSpeed: 0.05, // seconds per grapheme
-      fontRatio: 0.6,
-      pause: 700, // milliseconds
-      repeat: false,
-      center: true,
-      vCenter: false,
-      cursorStyle: "straight",
-      border: false,
-      backgroundColor: "transparent",
-      backgroundOpacity: 1,
-      fontWeight: "400",
-    };
+    const linesParam = searchParams.get("lines");
+    let textLines: TextLine[] = [];
 
-    // Merge defaults into params if missing
-    Object.keys(defaults).forEach((k) => {
-      const key = k as keyof typeof defaults;
-      if (p[key] === undefined || p[key] === null) {
-        (p as Record<string, unknown>)[key] = defaults[key];
-      }
-    });
-
-    // Get deletion behavior from URL parameters - with backward compatibility
-    let deletionBehavior: DeletionBehavior = "backspace"; // default
-    const deletionParam = searchParams.get("deletionBehavior");
-    const deleteAfterParam = searchParams.get("deleteAfter"); // legacy parameter
-
-    if (
-      deletionParam &&
-      ["stay", "backspace", "clear"].includes(deletionParam)
-    ) {
-      deletionBehavior = deletionParam as DeletionBehavior;
-    } else if (deleteAfterParam !== null) {
-      // Handle legacy deleteAfter parameter
-      deletionBehavior = deleteAfterParam === "true" ? "backspace" : "stay";
-    }
-
-    // Parse text lines data
-    let textLines: TextLine[];
     try {
-      const linesParam = searchParams.get("lines");
       if (linesParam) {
-        // If user provided JSON lines, parse and normalize each line with defaults
-        const raw = JSON.parse(linesParam) as Partial<TextLine>[];
-        textLines = raw.map((ln) => {
-          const t = (ln && ln.text) || "";
+        const parsed = JSON.parse(linesParam);
+        const linesArray = Array.isArray(parsed) ? parsed : [parsed];
+
+        textLines = linesArray.map((ln) => {
+          if (typeof ln === "string") {
+            return {
+              text: ln,
+              font: p.font,
+              color: p.color,
+              fontSize: p.fontSize,
+              letterSpacing: p.letterSpacing,
+              typingSpeed: p.typingSpeed,
+              deleteSpeed: p.deleteSpeed,
+              fontWeight: p.fontWeight || "400",
+              lineHeight: 1.3,
+              animationStyle: p.animationStyle,
+              gradient: p.textGradient,
+            };
+          }
           return {
-            text: t,
+            text: ln && typeof ln.text === "string" ? ln.text : "",
             font: ln && ln.font ? ln.font : p.font,
             color: ln && ln.color ? ln.color : p.color,
             fontSize:
@@ -333,10 +280,13 @@ export async function GET(req: NextRequest) {
               ln && typeof ln.lineHeight === "number"
                 ? ln.lineHeight
                 : 1.3,
+            animationStyle:
+              ln && ln.animationStyle ? ln.animationStyle : p.animationStyle,
+            gradient:
+              ln && ln.gradient ? ln.gradient : p.textGradient,
           } as TextLine;
         });
       } else if (p.text) {
-        // Legacy short form: ?text=Hello+World
         const texts = p.text.split(";");
         textLines = texts.map((text: string) => ({
           text,
@@ -348,9 +298,10 @@ export async function GET(req: NextRequest) {
           deleteSpeed: p.deleteSpeed,
           fontWeight: p.fontWeight || "400",
           lineHeight: 1.3,
+          animationStyle: p.animationStyle,
+          gradient: p.textGradient,
         }));
       } else {
-        // If nothing provided, create an empty line (avoid crash)
         textLines = [
           {
             text: "",
@@ -362,6 +313,8 @@ export async function GET(req: NextRequest) {
             deleteSpeed: p.deleteSpeed,
             fontWeight: p.fontWeight || "400",
             lineHeight: 1.3,
+            animationStyle: p.animationStyle,
+            gradient: p.textGradient,
           },
         ];
       }
@@ -372,10 +325,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Filter out empty text lines
     textLines = textLines.filter((line) => line.text.trim() !== "");
 
-    // If no valid lines, create a default one
     if (textLines.length === 0) {
       textLines = [
         {
@@ -388,28 +339,26 @@ export async function GET(req: NextRequest) {
           deleteSpeed: p.deleteSpeed,
           fontWeight: p.fontWeight || "400",
           lineHeight: 1.3,
+          animationStyle: p.animationStyle,
+          gradient: p.textGradient,
         },
       ];
     }
 
-    // Fetch Google Fonts CSS and font data
     const { css: googleFontsCSS, fonts: parsedFonts } = await getGoogleFontsData(textLines);
 
-    // Formatter to trim decimals and remove trailing zeros
     const fmt = (n: number) => {
-      const s = Number(n.toFixed(3)); // keep up to 3 decimals
+      const s = Number(n.toFixed(3));
       return s % 1 === 0 ? s.toFixed(0) : s.toString();
     };
 
     let overallCycleDuration = 0;
     const allTextElements: string[] = [];
     let allCursorAnimations = "";
+    const gradientDefs: string[] = [];
 
     const emojiRegex = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/u;
 
-    /**
-     * Get character width using actual font metrics from opentype.js
-     */
     const getGraphemeWidth = (
       grapheme: string,
       fontSize: number,
@@ -421,85 +370,68 @@ export async function GET(req: NextRequest) {
         return fontSize + letterSpacingPx;
       }
       
-      // Use actual font metrics if available
       if (font) {
         try {
           const glyph = font.charToGlyph(grapheme);
           if (glyph) {
-            // Get the advance width from the glyph
             const advanceWidth = glyph.advanceWidth || 0;
-            // Convert from font units to pixels
             const scale = fontSize / font.unitsPerEm;
             const charWidth = advanceWidth * scale;
             return charWidth + letterSpacingPx;
           }
         } catch {
-          // Fall through to approximation
+          // Fall through
         }
       }
       
-      // Fallback approximation if font not available
       return fontSize * 0.5 + letterSpacingPx;
     };
 
-    // Approximate dimensions for initial positioning - actual layout handled by SVG
-    function estimateTextDimensions(
-      textLines: TextLine[],
-      deletionBehavior: DeletionBehavior
-    ) {
-      let totalHeight = 0;
-      let maxWidth = 0;
+    // Global position calculations for 'stay' behavior
+    let globalMaxLineWidth = 0;
+    let totalLinesCount = 0;
 
-      for (const line of textLines) {
-        const content = line.text;
-        const lines = content.split("\n");
-        const lineHeight = line.fontSize * line.lineHeight;
-        const letterSpacingPx = parseLetterSpacing(
-          line.letterSpacing,
-          line.fontSize
-        );
-        const font = parsedFonts.get(line.font) || null;
-        
-        for (const textLine of lines) {
-          let lineWidth = 0;
-          if (textLine.length > 0) {
-            const graphemes = [...textLine];
-            graphemes.forEach((grapheme) => {
-              lineWidth += getGraphemeWidth(grapheme, line.fontSize, font, letterSpacingPx);
-            });
-          }
-          maxWidth = Math.max(maxWidth, lineWidth);
-        }
+    textLines.forEach((line) => {
+      const subLines = line.text.split("\n");
+      const font = parsedFonts.get(line.font) || null;
+      const letterSpacingPx = parseLetterSpacing(line.letterSpacing, line.fontSize);
 
-        if (deletionBehavior === "stay") {
-          totalHeight += lines.length * lineHeight;
-        } else {
-          totalHeight = Math.max(totalHeight, lines.length * lineHeight);
-        }
-      }
+      subLines.forEach((subLine) => {
+        const graphemes = [...subLine];
+        let width = 0;
+        graphemes.forEach((grapheme) => {
+          width += getGraphemeWidth(grapheme, line.fontSize, font, letterSpacingPx);
+        });
+        globalMaxLineWidth = Math.max(globalMaxLineWidth, width);
+        totalLinesCount++;
+      });
+    });
 
-      return { totalWidth: maxWidth, totalHeight };
+    const averageLineHeight =
+      textLines.reduce(
+        (sum, line) => sum + line.fontSize * line.lineHeight,
+        0
+      ) / textLines.length;
+
+    const globalTotalHeight = totalLinesCount * averageLineHeight;
+    
+    // Vertical alignment calculation
+    let globalTextBlockYOffset = (p.height - globalTotalHeight) / 2;
+    if (p.vAlign === 'top') {
+      globalTextBlockYOffset = 20;
+    } else if (p.vAlign === 'bottom') {
+      globalTextBlockYOffset = Math.max(10, p.height - globalTotalHeight - 20);
     }
 
-    // Estimate dimensions for rough centering - SVG will handle actual layout
-    const totalDimensions = estimateTextDimensions(
-      textLines,
-      deletionBehavior
-    );
-    const globalTextBlockYOffset = p.vCenter
-      ? (p.height - totalDimensions.totalHeight) / 2
-      : 10;
-    const globalTextBlockXOffset = p.center
-      ? (p.width - totalDimensions.totalWidth) / 2
-      : 15;
+    // Horizontal alignment calculation
+    let globalTextBlockXOffset = (p.width - globalMaxLineWidth) / 2;
+    if (p.hAlign === 'left') {
+      globalTextBlockXOffset = 20;
+    } else if (p.hAlign === 'right') {
+      globalTextBlockXOffset = Math.max(10, p.width - globalMaxLineWidth - 20);
+    }
 
-    // compute pause duration once (seconds) and use grapheme-aware counting
-    const pauseDuration = (Number(searchParams.get("pause")) || p.pause) / 1000;
-
-    // total time (relative to cycle.begin) after which ALL lines have finished typing,
-    // INCLUDING the pause after the last line. **Count graphemes exactly the same way the renderer does**
     const allLinesTypingDuration = textLines.reduce((total, tl) => {
-      // Important: exclude newline characters to match the per-line grapheme counting used for tspan generation
       const tlGraphemeCount = tl.text
         .split("\n")
         .reduce((s, ln) => s + [...ln].length, 0);
@@ -507,7 +439,7 @@ export async function GET(req: NextRequest) {
     }, 0);
 
     let cycleOffset = 0;
-    let accumulatedHeight = 0; // Track cumulative height for 'stay' behavior
+    let accumulatedHeight = 0;
 
     for (
       let contentIndex = 0;
@@ -529,7 +461,6 @@ export async function GET(req: NextRequest) {
         line.fontSize
       );
 
-      // Rough estimate for positioning - actual width determined by font metrics
       const font = parsedFonts.get(line.font) || null;
       
       const lineCalculations = linesAsGraphemes.map((textLine) => {
@@ -548,34 +479,45 @@ export async function GET(req: NextRequest) {
       );
       const textBlockHeight = lines.length * lineHeight;
 
-      // Calculate positioning based on deletion behavior
       let textBlockYOffset: number;
       let textBlockXOffset: number;
 
       if (deletionBehavior === "stay") {
-        // For 'stay', use global positioning with accumulated height
         textBlockYOffset = globalTextBlockYOffset + accumulatedHeight;
-        textBlockXOffset = p.center
-          ? (p.width - textBlockWidth) / 2
-          : globalTextBlockXOffset;
+        if (p.hAlign === 'left') {
+          textBlockXOffset = 20;
+        } else if (p.hAlign === 'right') {
+          textBlockXOffset = Math.max(10, p.width - textBlockWidth - 20);
+        } else {
+          textBlockXOffset = (p.width - textBlockWidth) / 2;
+        }
       } else {
-        // For 'backspace' and 'clear', each line uses the same position
-        textBlockYOffset = p.vCenter ? (p.height - textBlockHeight) / 2 : 10;
-        textBlockXOffset = p.center ? (p.width - textBlockWidth) / 2 : 15;
+        if (p.vAlign === 'top') {
+          textBlockYOffset = 20;
+        } else if (p.vAlign === 'bottom') {
+          textBlockYOffset = Math.max(10, p.height - textBlockHeight - 20);
+        } else {
+          textBlockYOffset = (p.height - textBlockHeight) / 2;
+        }
+
+        if (p.hAlign === 'left') {
+          textBlockXOffset = 20;
+        } else if (p.hAlign === 'right') {
+          textBlockXOffset = Math.max(10, p.width - textBlockWidth - 20);
+        } else {
+          textBlockXOffset = (p.width - textBlockWidth) / 2;
+        }
       }
 
       const totalTypingDuration = totalGraphemeCount * line.typingSpeed;
 
-      // Calculate deletion duration based on behavior
       let deletionDuration = 0;
       if (deletionBehavior === "backspace") {
         deletionDuration = totalGraphemeCount * line.deleteSpeed;
       } else if (deletionBehavior === "clear") {
-        deletionDuration = 0.01; // Instant clear
+        deletionDuration = 0.01;
       }
-      // For 'stay', deletionDuration remains 0
 
-      // contentCycleDuration already includes one pause per content chunk (including last chunk)
       const contentCycleDuration =
         totalTypingDuration + pauseDuration + deletionDuration;
 
@@ -585,20 +527,40 @@ export async function GET(req: NextRequest) {
       const beforeCharX: number[] = [];
       const beforeCharY: number[] = [];
 
-      const centerX = p.width / 2;
       const cursorYOffset = getCursorYOffset(p.cursorStyle, line.fontSize);
       const cursorXOffset = line.fontSize * 0.12;
       const deleteStart = cycleOffset + totalTypingDuration + pauseDuration;
       let globalCharIndex = 0;
-      
-      // For each visual line inside this content block
+
+      // Check for gradient text
+      let textFill = line.color;
+      const gradientInfo = line.gradient ? parseGradient(line.gradient) : null;
+      if (gradientInfo) {
+        const gradId = `text-grad-${contentIndex}`;
+        const { x1, y1, x2, y2 } = getGradientCoordinates(gradientInfo.angle);
+        gradientDefs.push(
+          `<linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
+            <stop offset="0%" stop-color="${gradientInfo.from}"/>
+            <stop offset="100%" stop-color="${gradientInfo.to}"/>
+          </linearGradient>`
+        );
+        textFill = `url(#${gradId})`;
+      }
+
+      const currentAnimStyle = line.animationStyle || p.animationStyle || 'typewriter';
+
+      // For each visual line
       for (let i = 0; i < linesAsGraphemes.length; i++) {
         const textLine = linesAsGraphemes[i];
         const lineYCenter = textBlockYOffset + i * lineHeight + lineHeight / 2;
         const lineWidth = lineCalculations[i].width;
-        const lineStartX = p.center
-          ? centerX - lineWidth / 2
-          : textBlockXOffset;
+        
+        let lineStartX = textBlockXOffset;
+        if (p.hAlign === 'center') {
+          lineStartX = (p.width / 2) - lineWidth / 2;
+        } else if (p.hAlign === 'right') {
+          lineStartX = p.width - lineWidth - 20;
+        }
 
         let currentX = 0;
         let tspanElements = "";
@@ -611,13 +573,29 @@ export async function GET(req: NextRequest) {
             : `${fmt(typingBegin)}s`;
 
           let typingAnimation = "";
-          if (p.repeat && deletionBehavior === "stay") {
-            const resetAnim = `<animate attributeName="opacity" to="0" dur="0s" begin="cycle.begin" fill="freeze"/>`;
-            const showBegin = `cycle.begin + ${fmt(typingBegin + 0.02)}s`;
-            const showAnim = `<animate attributeName="opacity" values="0;1" dur="0.01s" begin="${showBegin}" fill="freeze"/>`;
-            typingAnimation = resetAnim + showAnim;
+
+          // Custom SMIL animation styles
+          if (currentAnimStyle === 'fade') {
+            const fadeDur = fmt(Math.max(0.15, line.typingSpeed * 1.5));
+            typingAnimation = `<animate attributeName="opacity" from="0" to="1" dur="${fadeDur}s" begin="${typingBeginAttr}" fill="freeze"/>`;
+          } else if (currentAnimStyle === 'slide-up') {
+            const slideDur = fmt(Math.max(0.2, line.typingSpeed * 1.3));
+            const dyOffset = fmt(line.fontSize * 0.35);
+            typingAnimation = `<animate attributeName="opacity" from="0" to="1" dur="${slideDur}s" begin="${typingBeginAttr}" fill="freeze"/><animate attributeName="dy" from="${dyOffset}" to="0" dur="${slideDur}s" begin="${typingBeginAttr}" fill="freeze"/>`;
+          } else if (currentAnimStyle === 'wave') {
+            typingAnimation = `<animate attributeName="opacity" from="0" to="1" dur="0.05s" begin="${typingBeginAttr}" fill="freeze"/><animate attributeName="dy" values="0;-7;0;3;0" dur="1.2s" begin="${typingBeginAttr}" repeatCount="indefinite"/>`;
+          } else if (currentAnimStyle === 'glitch') {
+            typingAnimation = `<animate attributeName="opacity" values="0;1;0.2;1" keyTimes="0;0.3;0.6;1" dur="0.25s" begin="${typingBeginAttr}" fill="freeze"/><animate attributeName="dx" values="3;-3;1;0" keyTimes="0;0.3;0.7;1" dur="0.25s" begin="${typingBeginAttr}" fill="freeze"/>`;
           } else {
-            typingAnimation = `<animate attributeName="opacity" from="0" to="1" dur="0.01s" begin="${typingBeginAttr}" fill="freeze"/>`;
+            // Classic typewriter
+            if (p.repeat && deletionBehavior === "stay") {
+              const resetAnim = `<animate attributeName="opacity" to="0" dur="0s" begin="cycle.begin" fill="freeze"/>`;
+              const showBegin = `cycle.begin + ${fmt(typingBegin + 0.02)}s`;
+              const showAnim = `<animate attributeName="opacity" values="0;1" dur="0.01s" begin="${showBegin}" fill="freeze"/>`;
+              typingAnimation = resetAnim + showAnim;
+            } else {
+              typingAnimation = `<animate attributeName="opacity" from="0" to="1" dur="0.01s" begin="${typingBeginAttr}" fill="freeze"/>`;
+            }
           }
 
           let deletionAnimation = "";
@@ -646,7 +624,6 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // Get accurate character width from font metrics
           const charWidth = getGraphemeWidth(grapheme, line.fontSize, font, letterSpacingPx);
           
           const xForThisGrapheme = fmt(lineStartX + currentX);
@@ -664,7 +641,6 @@ export async function GET(req: NextRequest) {
           globalCharIndex++;
         }
 
-        // Create text element with proper letter-spacing CSS value
         const letterSpacingCSS =
           typeof line.letterSpacing === "number"
             ? `${line.letterSpacing}em`
@@ -672,7 +648,8 @@ export async function GET(req: NextRequest) {
 
         const textStyle = `font-family:'${line.font}',monospace;font-size:${fmt(
           line.fontSize
-        )}px;font-weight:${line.fontWeight};fill:${line.color};letter-spacing:${letterSpacingCSS};`;
+        )}px;font-weight:${line.fontWeight};fill:${textFill};letter-spacing:${letterSpacingCSS};`;
+        
         allTextElements.push(
           `<text class="text-common" y="${fmt(
             lineYCenter
@@ -680,11 +657,10 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // Cursor typing animation values (after each typed grapheme)
+      // Cursor typing animations
       const typingXValues = afterCharX.map((x) => fmt(x + cursorXOffset));
       const typingYValues = afterCharY.map((y) => fmt(y + cursorYOffset));
 
-      // Handle cursor animations based on deletion behavior
       if (typingXValues.length > 0) {
         const typingBeginAttr = p.repeat
           ? `cycle.begin + ${fmt(cycleOffset)}s`
@@ -778,12 +754,17 @@ export async function GET(req: NextRequest) {
             const nextLine = textLines[nextContentIndex];
             const nextTextBlockHeight =
               nextLine.text.split("\n").length * nextLine.fontSize * 1.3;
-            const nextTextBlockYOffset = p.vCenter
-              ? (p.height - nextTextBlockHeight) / 2
-              : 10;
+            
+            let nextTextBlockYOffset = (p.height - nextTextBlockHeight) / 2;
+            if (p.vAlign === 'top') nextTextBlockYOffset = 20;
+            else if (p.vAlign === 'bottom') nextTextBlockYOffset = Math.max(10, p.height - nextTextBlockHeight - 20);
+
+            let nextLineStartX = 20;
+            if (p.hAlign === 'center') nextLineStartX = p.width / 2;
+            else if (p.hAlign === 'right') nextLineStartX = p.width - 20;
 
             targetCursorPos = {
-              x: (p.center ? p.width / 2 : 15) + cursorXOffset,
+              x: nextLineStartX + cursorXOffset,
               y:
                 nextTextBlockYOffset +
                 (nextLine.fontSize * 1.3) / 2 +
@@ -806,7 +787,6 @@ export async function GET(req: NextRequest) {
 
       cycleOffset += contentCycleDuration;
 
-      // Update accumulated height for 'stay' behavior
       if (deletionBehavior === "stay") {
         accumulatedHeight += textBlockHeight;
       }
@@ -814,52 +794,55 @@ export async function GET(req: NextRequest) {
 
     overallCycleDuration = cycleOffset || 0;
 
-    // If repeating & stay, hide cursor when all text hides (allLinesTypingDuration includes last pause)
     let repeatHideBegin: number | null = null;
     if (p.repeat && deletionBehavior === "stay") {
       repeatHideBegin = allLinesTypingDuration;
     }
 
-    // small offset to avoid tie ordering issues for cursor visibility & blink
-    const visibilityStartOffset = 0.02; // 20ms
+    const visibilityStartOffset = 0.02;
 
-    // Use the first text line's font size for cursor sizing
     const cursorFontSize =
       textLines.length > 0 ? textLines[0].fontSize : p.fontSize;
-    const cursorColor = textLines.length > 0 ? textLines[0].color : p.color;
+    
+    // Resolve cursor color (custom, or fallback to first line color)
+    let finalCursorColor = p.cursorColor || textLines[0].color || "#000000";
+    if (finalCursorColor.startsWith("gradient:") || parseGradient(finalCursorColor)) {
+      const g = parseGradient(finalCursorColor);
+      finalCursorColor = g ? g.from : "#000000";
+    }
+
     let cursorElement = getCursorSvgShape(
       p.cursorStyle,
-      cursorColor,
+      finalCursorColor,
       cursorFontSize
     );
 
     if (cursorElement) {
       let visibilityAnimation = "";
       if (p.repeat) {
-        // For repeat mode, reveal slightly after cycle.begin, then hide at allLinesTypingDuration if stay
         visibilityAnimation += `<animate attributeName="visibility" from="hidden" to="visible" dur="0.01s" begin="cycle.begin + ${fmt(
           visibilityStartOffset
         )}s" fill="freeze"/>`;
 
         if (deletionBehavior === "stay" && repeatHideBegin !== null) {
-          // Hide cursor when all text hides (use the same hide time computed earlier)
           visibilityAnimation += `<animate attributeName="visibility" to="hidden" dur="0.01s" begin="cycle.begin + ${fmt(
             repeatHideBegin
           )}s" fill="freeze"/>`;
         } else {
-          // Fallback behavior (if not 'stay'), keep previous cycle-wide pattern
-          // Start it slightly after cycle.begin to avoid ordering ties.
           visibilityAnimation = `<animate attributeName="visibility" values="hidden;visible;hidden" keyTimes="0;0.001;1" dur="${fmt(
             overallCycleDuration
           )}s" begin="cycle.begin + ${fmt(visibilityStartOffset)}s"/>`;
         }
       } else {
-        // non-repeat: reveal immediately and hide based on deletion behavior
         if (deletionBehavior === "stay") {
-          // For 'stay', cursor remains visible after typing is complete
-          visibilityAnimation = `<animate attributeName="visibility" from="hidden" to="visible" dur="0.01s" begin="0s" fill="freeze"/>`;
+          if (p.hideCursorOnComplete) {
+            visibilityAnimation = `<animate attributeName="visibility" from="hidden" to="visible" dur="0.01s" begin="0s" fill="freeze"/><animate attributeName="visibility" to="hidden" dur="0.01s" begin="${fmt(
+              allLinesTypingDuration
+            )}s" fill="freeze"/>`;
+          } else {
+            visibilityAnimation = `<animate attributeName="visibility" from="hidden" to="visible" dur="0.01s" begin="0s" fill="freeze"/>`;
+          }
         } else {
-          // For other behaviors, hide at the end
           visibilityAnimation = `<animate attributeName="visibility" from="hidden" to="visible" dur="0.01s" begin="0s" fill="freeze"/><animate attributeName="visibility" to="hidden" dur="0.01s" begin="${fmt(
             overallCycleDuration
           )}s" fill="freeze"/>`;
@@ -868,23 +851,20 @@ export async function GET(req: NextRequest) {
 
       allCursorAnimations += visibilityAnimation;
 
-      // Cursor blink animation - adjust based on deletion behavior
+      // Cursor blink animation with custom blink speed
+      const blinkDur = fmt(p.cursorBlinkSpeed || 0.7);
       if (deletionBehavior === "stay" && !p.repeat) {
-        // For 'stay' non-repeat, cursor blinks continuously after all typing is done
         const blinkStart = overallCycleDuration;
-        allCursorAnimations += `<animate attributeName="opacity" values="1;0;1" dur="1.4s" begin="${fmt(
+        allCursorAnimations += `<animate attributeName="opacity" values="1;0;1" dur="${fmt(p.cursorBlinkSpeed * 2 || 1.4)}s" begin="${fmt(
           blinkStart
         )}s" repeatCount="indefinite"/>`;
       } else {
-        // Standard blinking during the animation
-        // If repeating, start blink slightly after cycle.begin to avoid tie with visibility reset
         const blinkBegin = p.repeat
           ? `cycle.begin + ${fmt(visibilityStartOffset)}s`
           : "0s";
-        allCursorAnimations += `<animate attributeName="opacity" values="1;0" dur="0.7s" begin="${blinkBegin}" repeatCount="indefinite"/>`;
+        allCursorAnimations += `<animate attributeName="opacity" values="1;0" dur="${blinkDur}s" begin="${blinkBegin}" repeatCount="indefinite"/>`;
       }
 
-      // inject animations into the rect
       cursorElement = cursorElement.replace(
         "/>",
         `>${allCursorAnimations}</rect>`
@@ -893,7 +873,34 @@ export async function GET(req: NextRequest) {
       cursorElement = "";
     }
 
-    // Build CSS styles including Google Fonts
+    // Background rendering logic (solid / gradient / transparent)
+    let bgRect = "";
+    const borderRadius = fmt(p.borderRadius || 4);
+    const strokeAttr = p.border ? 'stroke="#000" stroke-width="1"' : 'stroke="none"';
+
+    if (p.backgroundType === "transparent") {
+      bgRect = `<rect x="0.5" y="0.5" width="${fmt(p.width - 1)}" height="${fmt(
+        p.height - 1
+      )}" fill="none" ${strokeAttr} rx="${borderRadius}"/>`;
+    } else if (p.backgroundType === "gradient") {
+      const bgGradInfo = parseGradient(p.bgGradient) || { from: "#1e1e2e", to: "#11111b", angle: 45 };
+      const { x1, y1, x2, y2 } = getGradientCoordinates(bgGradInfo.angle);
+      gradientDefs.push(
+        `<linearGradient id="bg-grad" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
+          <stop offset="0%" stop-color="${bgGradInfo.from}"/>
+          <stop offset="100%" stop-color="${bgGradInfo.to}"/>
+        </linearGradient>`
+      );
+      bgRect = `<rect x="0.5" y="0.5" width="${fmt(p.width - 1)}" height="${fmt(
+        p.height - 1
+      )}" fill="url(#bg-grad)" fill-opacity="${p.backgroundOpacity}" ${strokeAttr} rx="${borderRadius}"/>`;
+    } else {
+      // Solid background
+      bgRect = `<rect x="0.5" y="0.5" width="${fmt(p.width - 1)}" height="${fmt(
+        p.height - 1
+      )}" fill="${p.backgroundColor}" fill-opacity="${p.backgroundOpacity}" ${strokeAttr} rx="${borderRadius}"/>`;
+    }
+
     const stylesCSS = `
       ${googleFontsCSS}
       .text-common { 
@@ -903,17 +910,12 @@ export async function GET(req: NextRequest) {
       }
     `;
 
-    // Build final SVG
     const svg = `<svg width="${fmt(p.width)}" height="${fmt(
       p.height
     )}" viewBox="0 0 ${fmt(p.width)} ${fmt(
       p.height
     )}" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0.5" y="0.5" width="${fmt(p.width - 1)}" height="${fmt(
-      p.height - 1
-    )}" fill="${p.backgroundColor}" fill-opacity="${p.backgroundOpacity}" stroke="${
-      p.border ? "#000" : "none"
-    }" stroke-width="1" rx="4"/>
+  ${bgRect}
   <defs>
     ${
       p.repeat
@@ -925,6 +927,7 @@ export async function GET(req: NextRequest) {
     <clipPath id="master-clip"><rect x="0" y="0" width="${fmt(
       p.width
     )}" height="${fmt(p.height)}"/></clipPath>
+    ${gradientDefs.join("\n    ")}
     <style type="text/css"><![CDATA[
 ${stylesCSS.trim()}
     ]]></style>
