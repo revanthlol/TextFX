@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FontCombobox } from './FontCombobox';
-import { GRADIENT_PRESETS, GradientPreset } from '@/lib/gradients';
+import { GRADIENT_PRESETS } from '@/lib/gradients';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 import { ColorPicker } from './ui/ColorPicker';
 import { RangeSlider } from './ui/RangeSlider';
@@ -155,22 +155,8 @@ function SvgGenerator() {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
-    // Initialize from URL params if present
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('preset')) {
-            const presetId = params.get('preset');
-            const found = PRESETS.find(p => p.id === presetId);
-            if (found) {
-                applyPreset(found);
-                return;
-            }
-        }
-    }, []);
-
     // Apply Preset Theme
-    const applyPreset = (preset: TextFXPreset) => {
+    const applyPreset = useCallback((preset: TextFXPreset) => {
         setActivePresetId(preset.id);
         setTextLines(preset.lines.map(l => ({ ...l })));
         setWidth(preset.canvas.width);
@@ -189,7 +175,21 @@ function SvgGenerator() {
         setLoop(preset.canvas.loop);
         setVanishBeforeNextLine(preset.canvas.vanishBeforeNextLine);
         showToast(`Applied preset: ${preset.name}`, preset.icon);
-    };
+    }, [showToast]);
+
+    // Initialize from URL params if present
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('preset')) {
+            const presetId = params.get('preset');
+            const found = PRESETS.find(p => p.id === presetId);
+            if (found) {
+                applyPreset(found);
+                return;
+            }
+        }
+    }, [applyPreset]);
 
     // Reset to initial defaults
     const resetToDefaults = () => {
@@ -261,7 +261,7 @@ function SvgGenerator() {
         ]);
     };
 
-    const updateTextLine = (index: number, field: keyof TextLine, value: any) => {
+    const updateTextLine = (index: number, field: keyof TextLine, value: TextLine[keyof TextLine]) => {
         const updated = [...textLines];
         updated[index] = { ...updated[index], [field]: value };
         setTextLines(updated);
@@ -286,7 +286,7 @@ function SvgGenerator() {
 
         // Lines payload
         const linesData = textLines.map(line => {
-            const minimal: Record<string, any> = { text: line.text };
+            const minimal: Record<string, unknown> = { text: line.text };
             if (!allSame('font') && line.font !== DEFAULT_VALUES.font) minimal.font = line.font;
             if (!allSame('color') && line.color !== DEFAULT_VALUES.color) minimal.color = line.color;
             if (!allSame('fontSize') && line.fontSize !== DEFAULT_VALUES.fontSize) minimal.fontSize = line.fontSize;
