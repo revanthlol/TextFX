@@ -1,15 +1,16 @@
 'use client';
 
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 
 interface AccordionSectionProps {
     title: string;
-    icon: string;
+    icon: React.ReactNode;
     badge?: string;
     isOpen: boolean;
     onToggle: () => void;
     children: React.ReactNode;
-    isDarkMode: boolean;
+    isDarkMode?: boolean;
     className?: string;
 }
 
@@ -20,53 +21,46 @@ export function AccordionSection({
     isOpen,
     onToggle,
     children,
-    isDarkMode,
+    isDarkMode = true,
     className = ''
 }: AccordionSectionProps) {
     return (
-        <div className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+        <div className={`rounded-lg border transition-all duration-150 overflow-hidden ${
             isDarkMode 
-                ? 'border-gray-800 bg-gray-900/60 hover:border-gray-700/80' 
-                : 'border-gray-200 bg-white shadow-sm hover:border-gray-300'
+                ? 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700/80' 
+                : 'border-zinc-200 bg-white hover:border-zinc-300 shadow-sm'
         } ${className}`}>
             <button
                 type="button"
                 onClick={onToggle}
-                className={`w-full flex items-center justify-between p-4 text-left select-none transition-colors ${
+                className={`w-full flex items-center justify-between px-4 py-3 text-left select-none transition-colors ${
                     isOpen 
-                        ? isDarkMode ? 'bg-gray-800/40' : 'bg-gray-50/70'
-                        : 'hover:bg-gray-800/20'
+                        ? isDarkMode ? 'bg-zinc-900/80' : 'bg-zinc-50'
+                        : 'hover:bg-zinc-800/30'
                 }`}
             >
-                <div className="flex items-center gap-3">
-                    <span className="text-base">{icon}</span>
-                    <span className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className="flex items-center gap-2.5">
+                    <span className="text-zinc-400 flex items-center justify-center">{icon}</span>
+                    <span className={`font-semibold text-xs tracking-tight ${isDarkMode ? 'text-zinc-100' : 'text-zinc-900'}`}>
                         {title}
                     </span>
                     {badge && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
-                            isDarkMode ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-600 border border-blue-200'
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-medium ${
+                            isDarkMode ? 'bg-zinc-800 text-zinc-400 border border-zinc-700' : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
                         }`}>
                             {badge}
                         </span>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <svg
-                        className={`w-4 h-4 text-gray-400 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </div>
+                <ChevronDown
+                    className={`w-4 h-4 text-zinc-400 transform transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
+                />
             </button>
 
             {isOpen && (
-                <div className={`p-4 pt-3 border-t space-y-4 animate-in fade-in-50 duration-150 ${
-                    isDarkMode ? 'border-gray-800/80' : 'border-gray-100'
+                <div className={`p-4 border-t space-y-4 ${
+                    isDarkMode ? 'border-zinc-800/80' : 'border-zinc-100'
                 }`}>
                     {children}
                 </div>

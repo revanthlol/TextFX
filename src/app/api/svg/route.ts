@@ -64,6 +64,8 @@ function getCursorYOffset(style: string, fontSize: number): number {
       return fontSize * 0.45;
     case "block":
       return -fontSize * 0.85;
+    case "half-block":
+      return -fontSize * 0.8;
     case "blank":
       return 0;
     case "straight":
@@ -87,6 +89,10 @@ function getCursorSvgShape(
       return `<rect y="-5" width="${(fontSize * 0.6).toFixed(1)}" height="${(
         fontSize * 1.1
       ).toFixed(1)}" fill="${color}" visibility="hidden" />`;
+    case "half-block":
+      return `<rect y="-5" width="${(fontSize * 0.35).toFixed(1)}" height="${(
+        fontSize * 1.05
+      ).toFixed(1)}" fill="${color}" visibility="hidden" />`;
     case "blank":
       return "";
     case "straight":
@@ -97,14 +103,21 @@ function getCursorSvgShape(
   }
 }
 
+const fontCache = new Map<string, { css: string; fontData: ArrayBuffer | null }>();
+
 /**
- * Fetch Google Font CSS and font file
+ * Fetch Google Font CSS and font file with caching
  */
 async function fetchGoogleFontCSS(
   fontFamily: string,
   weight: string = "400",
   text: string = ""
 ): Promise<{ css: string; fontData: ArrayBuffer | null }> {
+  const cacheKey = `${fontFamily}_${weight}_${text}`;
+  if (fontCache.has(cacheKey)) {
+    return fontCache.get(cacheKey)!;
+  }
+
   try {
     const url = `https://fonts.googleapis.com/css2?${new URLSearchParams({
       family: `${fontFamily}:wght@${weight}`,
@@ -112,12 +125,17 @@ async function fetchGoogleFontCSS(
       display: "fallback",
     })}`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch Google Font CSS: ${response.status}`);
@@ -134,7 +152,11 @@ async function fetchGoogleFontCSS(
       const [, fontUrl, fontFormat] = match;
 
       try {
-        const fontResponse = await fetch(fontUrl);
+        const fontController = new AbortController();
+        const fontTimeout = setTimeout(() => fontController.abort(), 2000);
+        const fontResponse = await fetch(fontUrl, { signal: fontController.signal });
+        clearTimeout(fontTimeout);
+
         if (fontResponse.ok) {
           const fontBuffer = await fontResponse.arrayBuffer();
           if (!firstFontData) {
@@ -149,10 +171,14 @@ async function fetchGoogleFontCSS(
       }
     }
 
-    return { css, fontData: firstFontData };
+    const result = { css, fontData: firstFontData };
+    fontCache.set(cacheKey, result);
+    return result;
   } catch (error) {
     console.error(`Failed to fetch Google Font for ${fontFamily}:`, error);
-    return { css: "", fontData: null };
+    const fallback = { css: "", fontData: null };
+    fontCache.set(cacheKey, fallback);
+    return fallback;
   }
 }
 

@@ -1,6 +1,31 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+    Terminal, 
+    Zap, 
+    Sun, 
+    Briefcase, 
+    Compass, 
+    Sparkles, 
+    Type, 
+    Palette, 
+    Sliders, 
+    Settings2, 
+    Code, 
+    Copy, 
+    Check, 
+    RotateCcw, 
+    Share2, 
+    Download, 
+    Trash2, 
+    Plus, 
+    Github, 
+    MessageSquare, 
+    Monitor,
+    Layers,
+    Moon
+} from 'lucide-react';
 import { FontCombobox } from './FontCombobox';
 import { GRADIENT_PRESETS } from '@/lib/gradients';
 import { PRESETS, TextFXPreset } from '@/data/presets';
@@ -26,24 +51,24 @@ interface TextLine {
 
 const DEFAULT_VALUES = {
     font: 'Courier Prime',
-    color: '#000000',
+    color: '#00ff66',
     fontSize: 28,
     letterSpacing: '0.1em',
-    typingSpeed: 2,
-    deleteSpeed: 2,
+    typingSpeed: 0.06,
+    deleteSpeed: 0.04,
     fontWeight: '400',
     lineHeight: 1.3,
     animationStyle: 'typewriter',
     gradient: '',
-    width: 500,
+    width: 600,
     height: 100,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0d1117',
     backgroundGradient: '',
     backgroundGradientAngle: 90,
     hAlign: 'center' as const,
-    vAlign: 'middle' as const,
+    vAlign: 'center' as const,
     cursorChar: '|',
-    cursorColor: '',
+    cursorColor: '#00ff66',
     cursorBlinkSpeed: 600,
     hideCursorOnComplete: false,
     pauseDuration: 2,
@@ -52,11 +77,11 @@ const DEFAULT_VALUES = {
 };
 
 const ANIMATION_STYLES = [
-    { id: 'typewriter', label: 'Typewriter', icon: '⌨️', desc: 'Progressive character typing' },
-    { id: 'fade', label: 'Fade In/Out', icon: '✨', desc: 'Smooth opacity transitions' },
-    { id: 'slide-up', label: 'Slide Up', icon: '🚀', desc: 'Slide in from bottom' },
-    { id: 'wave', label: 'Wave Bounce', icon: '🌊', desc: 'Dynamic sine oscillation' },
-    { id: 'glitch', label: 'Cyber Glitch', icon: '⚡', desc: 'Chromatic displacement' },
+    { id: 'typewriter', label: 'Typewriter', desc: 'Progressive typing' },
+    { id: 'fade', label: 'Fade In/Out', desc: 'Opacity transition' },
+    { id: 'slide-up', label: 'Slide Up', desc: 'Slide in from bottom' },
+    { id: 'wave', label: 'Wave', desc: 'Sine wave bounce' },
+    { id: 'glitch', label: 'Glitch', desc: 'Cyber chromatic jitter' },
 ];
 
 const CURSOR_OPTIONS = [
@@ -64,7 +89,6 @@ const CURSOR_OPTIONS = [
     { label: 'Underscore (_)', value: '_' },
     { label: 'Solid Block (█)', value: '█' },
     { label: 'Half Block (▋)', value: '▋' },
-    { label: 'Slash (/)', value: '/' },
     { label: 'None (Hidden)', value: '' },
 ];
 
@@ -103,21 +127,21 @@ function SvgGenerator() {
             color: '#00ff66', 
             fontSize: 28, 
             letterSpacing: '0.1em', 
-            typingSpeed: 2, 
-            deleteSpeed: 2, 
+            typingSpeed: 0.06, 
+            deleteSpeed: 0.04, 
             fontWeight: '400', 
             lineHeight: 1.3,
             animationStyle: 'typewriter',
             gradient: ''
         },
         { 
-            text: 'Animated with TextFX! 🚀✨', 
+            text: 'Animated with TextFX!', 
             font: 'Courier Prime', 
             color: '#00ff66', 
             fontSize: 28, 
             letterSpacing: '0.1em', 
-            typingSpeed: 2, 
-            deleteSpeed: 2, 
+            typingSpeed: 0.06, 
+            deleteSpeed: 0.04, 
             fontWeight: '400', 
             lineHeight: 1.3,
             animationStyle: 'typewriter',
@@ -133,7 +157,7 @@ function SvgGenerator() {
     const [backgroundGradient, setBackgroundGradient] = useState('');
     const [backgroundGradientAngle, setBackgroundGradientAngle] = useState(90);
     const [hAlign, setHAlign] = useState<'left' | 'center' | 'right'>('center');
-    const [vAlign, setVAlign] = useState<'top' | 'middle' | 'bottom'>('middle');
+    const [vAlign, setVAlign] = useState<'top' | 'center' | 'bottom'>('center');
 
     // Cursor & Timing State
     const [cursorChar, setCursorChar] = useState('|');
@@ -150,7 +174,7 @@ function SvgGenerator() {
     // Copy states
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-    // Toggle single accordion
+    // Toggle accordion
     const toggleSection = (section: keyof typeof openSections) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
@@ -166,7 +190,7 @@ function SvgGenerator() {
         setBackgroundGradient(preset.canvas.backgroundGradient);
         setBackgroundGradientAngle(preset.canvas.backgroundGradientAngle);
         setHAlign(preset.canvas.hAlign);
-        setVAlign(preset.canvas.vAlign);
+        setVAlign(preset.canvas.vAlign === 'middle' ? 'center' : preset.canvas.vAlign);
         setCursorChar(preset.canvas.cursorChar);
         setCursorColor(preset.canvas.cursorColor);
         setCursorBlinkSpeed(preset.canvas.cursorBlinkSpeed);
@@ -174,7 +198,7 @@ function SvgGenerator() {
         setPauseDuration(preset.canvas.pauseDuration);
         setLoop(preset.canvas.loop);
         setVanishBeforeNextLine(preset.canvas.vanishBeforeNextLine);
-        showToast(`Applied preset: ${preset.name}`, preset.icon);
+        showToast(`Preset: ${preset.name}`, 'sparkles');
     }, [showToast]);
 
     // Initialize from URL params if present
@@ -186,12 +210,11 @@ function SvgGenerator() {
             const found = PRESETS.find(p => p.id === presetId);
             if (found) {
                 applyPreset(found);
-                return;
             }
         }
     }, [applyPreset]);
 
-    // Reset to initial defaults
+    // Reset to defaults
     const resetToDefaults = () => {
         setActivePresetId(null);
         setTextLines([
@@ -209,7 +232,7 @@ function SvgGenerator() {
                 gradient: DEFAULT_VALUES.gradient
             },
             {
-                text: 'Animated with TextFX! 🚀✨',
+                text: 'Animated with TextFX!',
                 font: DEFAULT_VALUES.font,
                 color: '#00ff66',
                 fontSize: DEFAULT_VALUES.fontSize,
@@ -229,7 +252,7 @@ function SvgGenerator() {
         setBackgroundGradient('');
         setBackgroundGradientAngle(90);
         setHAlign('center');
-        setVAlign('middle');
+        setVAlign('center');
         setCursorChar('|');
         setCursorColor('#00ff66');
         setCursorBlinkSpeed(600);
@@ -237,7 +260,7 @@ function SvgGenerator() {
         setPauseDuration(2);
         setLoop(true);
         setVanishBeforeNextLine(true);
-        showToast('Reset to default configuration', '🔄');
+        showToast('Reset to default settings', 'info');
     };
 
     // Line management
@@ -371,7 +394,7 @@ function SvgGenerator() {
     const handleCopy = (text: string, key: string, label: string) => {
         navigator.clipboard.writeText(text);
         setCopiedKey(key);
-        showToast(`Copied ${label} to clipboard!`, '📋');
+        showToast(`Copied ${label}`, 'check');
         setTimeout(() => setCopiedKey(null), 2000);
     };
 
@@ -388,18 +411,32 @@ function SvgGenerator() {
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-            showToast('Downloaded textfx-animated.svg', '💾');
+            showToast('Downloaded textfx-animated.svg', 'check');
         } catch {
-            showToast('Failed to download SVG', '⚠️');
+            showToast('Failed to download SVG', 'info');
+        }
+    };
+
+    // Preset Lucide Icon Renderer
+    const renderPresetIcon = (iconName: TextFXPreset['iconName']) => {
+        switch (iconName) {
+            case 'Terminal': return <Terminal className="w-3.5 h-3.5" />;
+            case 'Zap': return <Zap className="w-3.5 h-3.5" />;
+            case 'Sun': return <Sun className="w-3.5 h-3.5" />;
+            case 'Briefcase': return <Briefcase className="w-3.5 h-3.5" />;
+            case 'Compass': return <Compass className="w-3.5 h-3.5" />;
+            case 'Sparkles':
+            default:
+                return <Sparkles className="w-3.5 h-3.5" />;
         }
     };
 
     // Canvas background style helper
     const getCanvasBgClass = () => {
         switch (canvasTheme) {
-            case 'light': return 'bg-white text-gray-900 border-gray-200';
+            case 'light': return 'bg-white text-zinc-900 border-zinc-200';
             case 'dimmed': return 'bg-[#161b22] text-[#c9d1d9] border-[#30363d]';
-            case 'transparent': return 'bg-checkered text-white border-gray-700/50';
+            case 'transparent': return 'bg-checkered text-white border-zinc-800';
             case 'dark':
             default:
                 return 'bg-[#0d1117] text-[#c9d1d9] border-[#30363d]';
@@ -407,75 +444,70 @@ function SvgGenerator() {
     };
 
     return (
-        <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-[#090d13] text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
+        <div className={`min-h-screen transition-colors duration-150 ${isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
             
             {/* Top Navigation Bar */}
             <header className={`sticky top-0 z-40 border-b backdrop-blur-md transition-colors ${
-                isDarkMode ? 'bg-[#0d1117]/80 border-gray-800' : 'bg-white/80 border-gray-200'
+                isDarkMode ? 'bg-zinc-950/85 border-zinc-800' : 'bg-white/85 border-zinc-200'
             }`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 font-mono font-bold text-white text-lg">
-                            ⚡
+                        <div className="w-7 h-7 rounded-md bg-zinc-900 border border-zinc-700 flex items-center justify-center font-mono font-bold text-white text-sm shadow-sm">
+                            <Zap className="w-4 h-4 text-zinc-100" />
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
-                                    TextFX
-                                </h1>
-                                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold">
-                                    Studio v2.0
-                                </span>
-                            </div>
-                            <p className="text-[11px] text-gray-400">
-                                Dynamic Animated SVGs for GitHub READMEs & Profiles
-                            </p>
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm tracking-tight">
+                                TextFX
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800/80 text-zinc-400 border border-zinc-700">
+                                studio
+                            </span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => handleCopy(window.location.href, 'share', 'Shareable URL')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            onClick={() => handleCopy(window.location.href, 'share', 'Share URL')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                                 isDarkMode 
-                                    ? 'bg-gray-800/80 border-gray-700 text-gray-200 hover:bg-gray-700 hover:text-white' 
-                                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'
+                                    ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white' 
+                                    : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100 shadow-sm'
                             }`}
                         >
-                            <span>🔗</span>
-                            <span>Share Config</span>
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span>Share</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={resetToDefaults}
-                            className={`p-2 rounded-lg border text-xs transition-colors ${
-                                isDarkMode ? 'border-gray-800 bg-gray-800/60 text-gray-300 hover:text-white' : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900'
+                            className={`p-1.5 rounded-md border text-xs transition-colors ${
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100'
                             }`}
-                            title="Reset all settings to default"
+                            title="Reset all settings"
                         >
-                            🔄
+                            <RotateCcw className="w-3.5 h-3.5" />
                         </button>
 
                         <button
                             type="button"
                             onClick={() => setIsDarkMode(!isDarkMode)}
-                            className={`p-2 rounded-lg border text-xs transition-colors ${
-                                isDarkMode ? 'border-gray-800 bg-gray-800/60 text-amber-400 hover:bg-gray-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                            className={`p-1.5 rounded-md border text-xs transition-colors ${
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100'
                             }`}
-                            title="Toggle Light/Dark App Theme"
+                            title="Toggle Theme"
                         >
-                            {isDarkMode ? '☀️' : '🌙'}
+                            {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                         </button>
                     </div>
                 </div>
             </header>
 
             {/* Starter Presets Banner */}
-            <div className={`border-b ${isDarkMode ? 'bg-[#0b0f17] border-gray-800/80' : 'bg-gray-100/70 border-gray-200'}`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 whitespace-nowrap mr-1">
+            <div className={`border-b ${isDarkMode ? 'bg-zinc-900/30 border-zinc-800/60' : 'bg-zinc-100/60 border-zinc-200'}`}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 whitespace-nowrap mr-1">
                         Presets:
                     </span>
                     {PRESETS.map(preset => (
@@ -483,15 +515,15 @@ function SvgGenerator() {
                             key={preset.id}
                             type="button"
                             onClick={() => applyPreset(preset)}
-                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all border ${
                                 activePresetId === preset.id
-                                    ? 'bg-blue-600 text-white border-blue-500 shadow-sm shadow-blue-500/30'
+                                    ? 'bg-zinc-100 text-zinc-950 border-zinc-200 font-semibold shadow-sm'
                                     : isDarkMode
-                                        ? 'bg-gray-800/80 border-gray-700/80 text-gray-300 hover:bg-gray-700 hover:text-white'
-                                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'
+                                        ? 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                                        : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                             }`}
                         >
-                            <span>{preset.icon}</span>
+                            {renderPresetIcon(preset.iconName)}
                             <span>{preset.name}</span>
                         </button>
                     ))}
@@ -502,13 +534,13 @@ function SvgGenerator() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     
-                    {/* LEFT PANE (5 cols): Scrollable Form Accordions */}
-                    <div className="lg:col-span-5 space-y-4">
+                    {/* LEFT PANE (5 cols): Form Accordions */}
+                    <div className="lg:col-span-5 space-y-3">
                         
-                        {/* 1. TEXT & LINES */}
+                        {/* 1. TEXT CONTENT & LINES */}
                         <AccordionSection
                             title="Text Content & Lines"
-                            icon="📝"
+                            icon={<Type className="w-4 h-4" />}
                             badge={`${textLines.length} ${textLines.length === 1 ? 'line' : 'lines'}`}
                             isOpen={openSections.text}
                             onToggle={() => toggleSection('text')}
@@ -518,21 +550,22 @@ function SvgGenerator() {
                                 {textLines.map((line, idx) => (
                                     <div 
                                         key={idx} 
-                                        className={`p-3.5 rounded-xl border space-y-3.5 transition-all ${
-                                            isDarkMode ? 'border-gray-800 bg-gray-800/40' : 'border-gray-200 bg-gray-50/50'
+                                        className={`p-3.5 rounded-lg border space-y-3 transition-all ${
+                                            isDarkMode ? 'border-zinc-800 bg-zinc-900/50' : 'border-zinc-200 bg-zinc-50/50'
                                         }`}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-semibold text-blue-400 font-mono">
+                                            <span className="text-xs font-semibold text-zinc-400 font-mono">
                                                 Line #{idx + 1}
                                             </span>
                                             {textLines.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeTextLine(idx)}
-                                                    className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded hover:bg-red-500/10 transition-colors"
+                                                    className="text-xs text-zinc-500 hover:text-red-400 p-1 rounded transition-colors"
+                                                    title="Remove line"
                                                 >
-                                                    Remove
+                                                    <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
                                             )}
                                         </div>
@@ -543,18 +576,18 @@ function SvgGenerator() {
                                                 type="text"
                                                 value={line.text}
                                                 onChange={(e) => updateTextLine(idx, 'text', e.target.value)}
-                                                placeholder="Type your text or emojis here..."
-                                                className={`w-full rounded-lg border text-sm px-3 py-2 outline-none font-medium transition-all ${
+                                                placeholder="Enter line text..."
+                                                className={`w-full rounded-md border text-xs px-3 py-2 outline-none font-medium transition-all ${
                                                     isDarkMode 
-                                                        ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500' 
-                                                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                                                        ? 'bg-zinc-950 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500' 
+                                                        : 'bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500'
                                                 }`}
                                             />
                                         </div>
 
                                         {/* Per-Line Font Picker */}
                                         <div className="space-y-1">
-                                            <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                                 Font Family
                                             </label>
                                             <FontCombobox
@@ -564,37 +597,37 @@ function SvgGenerator() {
                                             />
                                         </div>
 
-                                        {/* Per-Line Animation Style & Fill */}
+                                        {/* Per-Line Animation Style & Gradient */}
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="space-y-1">
-                                                <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                                     Animation Style
                                                 </label>
                                                 <select
                                                     value={line.animationStyle || 'typewriter'}
                                                     onChange={(e) => updateTextLine(idx, 'animationStyle', e.target.value)}
-                                                    className={`w-full rounded-lg border text-xs px-2.5 py-2 outline-none ${
-                                                        isDarkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                                    className={`w-full rounded-md border text-xs px-2.5 py-1.5 outline-none ${
+                                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-300 text-zinc-900'
                                                     }`}
                                                 >
                                                     {ANIMATION_STYLES.map(s => (
-                                                        <option key={s.id} value={s.id}>{s.icon} {s.label}</option>
+                                                        <option key={s.id} value={s.id}>{s.label}</option>
                                                     ))}
                                                 </select>
                                             </div>
 
                                             <div className="space-y-1">
-                                                <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                                     Gradient Fill
                                                 </label>
                                                 <select
                                                     value={line.gradient || ''}
                                                     onChange={(e) => updateTextLine(idx, 'gradient', e.target.value)}
-                                                    className={`w-full rounded-lg border text-xs px-2.5 py-2 outline-none ${
-                                                        isDarkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                                    className={`w-full rounded-md border text-xs px-2.5 py-1.5 outline-none ${
+                                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-300 text-zinc-900'
                                                     }`}
                                                 >
-                                                    <option value="">Solid Color (Below)</option>
+                                                    <option value="">Solid Color</option>
                                                     {GRADIENT_PRESETS.map(g => (
                                                         <option key={g.id} value={g.id}>{g.name}</option>
                                                     ))}
@@ -625,22 +658,22 @@ function SvgGenerator() {
                                             />
                                             <RangeSlider
                                                 label="Type Speed"
-                                                value={line.typingSpeed}
-                                                onChange={(v) => updateTextLine(idx, 'typingSpeed', v)}
-                                                min={0.5}
-                                                max={6}
-                                                step={0.5}
-                                                unit="s"
+                                                value={Math.round(line.typingSpeed * 1000)}
+                                                onChange={(v) => updateTextLine(idx, 'typingSpeed', v / 1000)}
+                                                min={20}
+                                                max={200}
+                                                step={10}
+                                                unit="ms"
                                                 isDarkMode={isDarkMode}
                                             />
                                             <RangeSlider
                                                 label="Delete Speed"
-                                                value={line.deleteSpeed}
-                                                onChange={(v) => updateTextLine(idx, 'deleteSpeed', v)}
-                                                min={0.5}
-                                                max={6}
-                                                step={0.5}
-                                                unit="s"
+                                                value={Math.round(line.deleteSpeed * 1000)}
+                                                onChange={(v) => updateTextLine(idx, 'deleteSpeed', v / 1000)}
+                                                min={10}
+                                                max={150}
+                                                step={10}
+                                                unit="ms"
                                                 isDarkMode={isDarkMode}
                                             />
                                         </div>
@@ -650,13 +683,13 @@ function SvgGenerator() {
                                 <button
                                     type="button"
                                     onClick={addTextLine}
-                                    className={`w-full py-2.5 rounded-xl border border-dashed text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                    className={`w-full py-2 rounded-md border border-dashed text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
                                         isDarkMode
-                                            ? 'border-gray-700 text-blue-400 hover:border-blue-500 hover:bg-blue-500/5'
-                                            : 'border-gray-300 text-blue-600 hover:border-blue-500 hover:bg-blue-50'
+                                            ? 'border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900'
+                                            : 'border-zinc-300 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100'
                                     }`}
                                 >
-                                    <span>➕</span>
+                                    <Plus className="w-3.5 h-3.5" />
                                     <span>Add Another Line</span>
                                 </button>
                             </div>
@@ -665,7 +698,7 @@ function SvgGenerator() {
                         {/* 2. TYPOGRAPHY & LETTERING */}
                         <AccordionSection
                             title="Typography & Lettering"
-                            icon="🔤"
+                            icon={<Sliders className="w-4 h-4" />}
                             isOpen={openSections.typography}
                             onToggle={() => toggleSection('typography')}
                             isDarkMode={isDarkMode}
@@ -673,7 +706,7 @@ function SvgGenerator() {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                             Font Weight
                                         </label>
                                         <select
@@ -682,8 +715,8 @@ function SvgGenerator() {
                                                 const updated = textLines.map(l => ({ ...l, fontWeight: e.target.value }));
                                                 setTextLines(updated);
                                             }}
-                                            className={`w-full rounded-lg border text-xs px-3 py-2 outline-none ${
-                                                isDarkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                            className={`w-full rounded-md border text-xs px-2.5 py-1.5 outline-none ${
+                                                isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-300 text-zinc-900'
                                             }`}
                                         >
                                             <option value="300">Light (300)</option>
@@ -696,7 +729,7 @@ function SvgGenerator() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                             Letter Spacing
                                         </label>
                                         <select
@@ -705,8 +738,8 @@ function SvgGenerator() {
                                                 const updated = textLines.map(l => ({ ...l, letterSpacing: e.target.value }));
                                                 setTextLines(updated);
                                             }}
-                                            className={`w-full rounded-lg border text-xs px-3 py-2 outline-none ${
-                                                isDarkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                            className={`w-full rounded-md border text-xs px-2.5 py-1.5 outline-none ${
+                                                isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-300 text-zinc-900'
                                             }`}
                                         >
                                             <option value="-0.05em">Tight (-0.05em)</option>
@@ -723,7 +756,7 @@ function SvgGenerator() {
                         {/* 3. ANIMATION & TIMING */}
                         <AccordionSection
                             title="Animation & Cursor Suite"
-                            icon="✨"
+                            icon={<Settings2 className="w-4 h-4" />}
                             isOpen={openSections.animation}
                             onToggle={() => toggleSection('animation')}
                             isDarkMode={isDarkMode}
@@ -731,14 +764,14 @@ function SvgGenerator() {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                             Cursor Style
                                         </label>
                                         <select
                                             value={cursorChar}
                                             onChange={(e) => setCursorChar(e.target.value)}
-                                            className={`w-full rounded-lg border text-xs px-3 py-2 outline-none ${
-                                                isDarkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                            className={`w-full rounded-md border text-xs px-2.5 py-1.5 outline-none ${
+                                                isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-300 text-zinc-900'
                                             }`}
                                         >
                                             {CURSOR_OPTIONS.map(c => (
@@ -783,24 +816,24 @@ function SvgGenerator() {
                                     </>
                                 )}
 
-                                <div className="pt-2 border-t border-gray-800 space-y-3">
+                                <div className="pt-2 border-t border-zinc-800 space-y-2">
                                     <SwitchToggle
                                         label="Infinite Loop"
-                                        description="Continuously loop the animation indefinitely"
+                                        description="Continuously repeat animation"
                                         checked={loop}
                                         onChange={setLoop}
                                         isDarkMode={isDarkMode}
                                     />
                                     <SwitchToggle
                                         label="Vanish Before Next Line"
-                                        description="Delete or fade out previous text before typing next line"
+                                        description="Backspace / fade previous line before next"
                                         checked={vanishBeforeNextLine}
                                         onChange={setVanishBeforeNextLine}
                                         isDarkMode={isDarkMode}
                                     />
                                     <SwitchToggle
                                         label="Auto-Hide Cursor"
-                                        description="Hide the cursor once the final animation completes"
+                                        description="Hide cursor when typing concludes"
                                         checked={hideCursorOnComplete}
                                         onChange={setHideCursorOnComplete}
                                         isDarkMode={isDarkMode}
@@ -812,14 +845,14 @@ function SvgGenerator() {
                         {/* 4. CANVAS BACKGROUND & GRADIENTS */}
                         <AccordionSection
                             title="Canvas Background & Gradients"
-                            icon="🎨"
+                            icon={<Palette className="w-4 h-4" />}
                             isOpen={openSections.colors}
                             onToggle={() => toggleSection('colors')}
                             isDarkMode={isDarkMode}
                         >
                             <div className="space-y-4">
                                 <div className="space-y-1">
-                                    <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                         Background Type
                                     </label>
                                     <div className="grid grid-cols-3 gap-2">
@@ -828,12 +861,12 @@ function SvgGenerator() {
                                                 key={type}
                                                 type="button"
                                                 onClick={() => setBackgroundType(type)}
-                                                className={`py-2 px-3 rounded-lg text-xs font-medium capitalize border transition-all ${
+                                                className={`py-1.5 px-3 rounded-md text-xs font-medium capitalize border transition-all ${
                                                     backgroundType === type
-                                                        ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                                                        ? 'bg-zinc-100 text-zinc-950 border-zinc-200 shadow-sm'
                                                         : isDarkMode
-                                                            ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-                                                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                            ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
+                                                            : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                                                 }`}
                                             >
                                                 {type}
@@ -854,17 +887,17 @@ function SvgGenerator() {
                                 {backgroundType === 'gradient' && (
                                     <div className="space-y-3">
                                         <div className="space-y-1">
-                                            <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                Background Gradient Preset
+                                            <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                                                Gradient Preset
                                             </label>
                                             <select
                                                 value={backgroundGradient}
                                                 onChange={(e) => setBackgroundGradient(e.target.value)}
-                                                className={`w-full rounded-lg border text-xs px-3 py-2 outline-none ${
-                                                    isDarkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                                                className={`w-full rounded-md border text-xs px-2.5 py-1.5 outline-none ${
+                                                    isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-300 text-zinc-900'
                                                 }`}
                                             >
-                                                <option value="">Select Gradient Preset...</option>
+                                                <option value="">Select Gradient...</option>
                                                 {GRADIENT_PRESETS.map(g => (
                                                     <option key={g.id} value={g.id}>{g.name}</option>
                                                 ))}
@@ -889,7 +922,7 @@ function SvgGenerator() {
                         {/* 5. CANVAS DIMENSIONS & ALIGNMENT */}
                         <AccordionSection
                             title="Dimensions & Alignment"
-                            icon="📐"
+                            icon={<Layers className="w-4 h-4" />}
                             isOpen={openSections.canvas}
                             onToggle={() => toggleSection('canvas')}
                             isDarkMode={isDarkMode}
@@ -920,7 +953,7 @@ function SvgGenerator() {
 
                                 <div className="grid grid-cols-2 gap-4 pt-2">
                                     <div className="space-y-1">
-                                        <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                             Horizontal Align
                                         </label>
                                         <div className="grid grid-cols-3 gap-1.5">
@@ -929,12 +962,12 @@ function SvgGenerator() {
                                                     key={align}
                                                     type="button"
                                                     onClick={() => setHAlign(align)}
-                                                    className={`py-1.5 rounded-lg text-xs font-medium capitalize border transition-all ${
+                                                    className={`py-1 rounded-md text-xs font-medium capitalize border transition-all ${
                                                         hAlign === align
-                                                            ? 'bg-blue-600 text-white border-blue-500'
+                                                            ? 'bg-zinc-100 text-zinc-950 border-zinc-200 shadow-sm'
                                                             : isDarkMode
-                                                                ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-                                                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                                ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
+                                                                : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                                                     }`}
                                                 >
                                                     {align}
@@ -944,21 +977,21 @@ function SvgGenerator() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className={`block text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        <label className={`block text-[11px] font-medium uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                             Vertical Align
                                         </label>
                                         <div className="grid grid-cols-3 gap-1.5">
-                                            {(['top', 'middle', 'bottom'] as const).map(align => (
+                                            {(['top', 'center', 'bottom'] as const).map(align => (
                                                 <button
                                                     key={align}
                                                     type="button"
                                                     onClick={() => setVAlign(align)}
-                                                    className={`py-1.5 rounded-lg text-xs font-medium capitalize border transition-all ${
+                                                    className={`py-1 rounded-md text-xs font-medium capitalize border transition-all ${
                                                         vAlign === align
-                                                            ? 'bg-blue-600 text-white border-blue-500'
+                                                            ? 'bg-zinc-100 text-zinc-950 border-zinc-200 shadow-sm'
                                                             : isDarkMode
-                                                                ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-                                                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                                ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
+                                                                : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                                                     }`}
                                                 >
                                                     {align}
@@ -973,7 +1006,7 @@ function SvgGenerator() {
                         {/* 6. EXPORT & EMBED CODES */}
                         <AccordionSection
                             title="Export & Embed Snippets"
-                            icon="🚀"
+                            icon={<Code className="w-4 h-4" />}
                             isOpen={openSections.export}
                             onToggle={() => toggleSection('export')}
                             isDarkMode={isDarkMode}
@@ -982,17 +1015,18 @@ function SvgGenerator() {
                                 {/* Markdown */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-gray-400">GitHub README (Markdown)</span>
+                                        <span className="font-medium text-zinc-400">GitHub README (Markdown)</span>
                                         <button
                                             type="button"
-                                            onClick={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'md', 'Markdown Snippet')}
-                                            className="text-blue-400 hover:text-blue-300 font-medium"
+                                            onClick={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'md', 'Markdown')}
+                                            className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
                                         >
-                                            {copiedKey === 'md' ? '✓ Copied' : 'Copy'}
+                                            {copiedKey === 'md' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            <span>{copiedKey === 'md' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
-                                    <div className={`p-2.5 rounded-lg font-mono text-xs break-all select-all border ${
-                                        isDarkMode ? 'bg-gray-900 border-gray-800 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800'
+                                    <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
+                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
                                     }`}>
                                         {`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`}
                                     </div>
@@ -1001,17 +1035,18 @@ function SvgGenerator() {
                                 {/* HTML <img> */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-gray-400">HTML &lt;img&gt; Tag</span>
+                                        <span className="font-medium text-zinc-400">HTML &lt;img&gt; Tag</span>
                                         <button
                                             type="button"
                                             onClick={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" />`, 'html', 'HTML Tag')}
-                                            className="text-blue-400 hover:text-blue-300 font-medium"
+                                            className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
                                         >
-                                            {copiedKey === 'html' ? '✓ Copied' : 'Copy'}
+                                            {copiedKey === 'html' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            <span>{copiedKey === 'html' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
-                                    <div className={`p-2.5 rounded-lg font-mono text-xs break-all select-all border ${
-                                        isDarkMode ? 'bg-gray-900 border-gray-800 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800'
+                                    <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
+                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
                                     }`}>
                                         {`<img src="${absoluteSvgUrl}" alt="TextFX Animation" />`}
                                     </div>
@@ -1020,17 +1055,18 @@ function SvgGenerator() {
                                 {/* Direct SVG URL */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-semibold text-gray-400">Direct SVG URL</span>
+                                        <span className="font-medium text-zinc-400">Direct SVG URL</span>
                                         <button
                                             type="button"
                                             onClick={() => handleCopy(absoluteSvgUrl, 'url', 'Direct SVG URL')}
-                                            className="text-blue-400 hover:text-blue-300 font-medium"
+                                            className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
                                         >
-                                            {copiedKey === 'url' ? '✓ Copied' : 'Copy'}
+                                            {copiedKey === 'url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            <span>{copiedKey === 'url' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
-                                    <div className={`p-2.5 rounded-lg font-mono text-xs break-all select-all border ${
-                                        isDarkMode ? 'bg-gray-900 border-gray-800 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800'
+                                    <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
+                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
                                     }`}>
                                         {absoluteSvgUrl}
                                     </div>
@@ -1043,60 +1079,60 @@ function SvgGenerator() {
                     {/* RIGHT PANE (7 cols): Pinned Sticky Live Preview */}
                     <div className="lg:col-span-7 lg:sticky lg:top-20 space-y-4">
                         
-                        <div className={`rounded-2xl border shadow-xl overflow-hidden backdrop-blur-md transition-all ${
-                            isDarkMode ? 'bg-[#0d1117]/90 border-[#30363d]' : 'bg-white border-gray-200'
+                        <div className={`rounded-xl border shadow-xl overflow-hidden backdrop-blur-md transition-all ${
+                            isDarkMode ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
                         }`}>
                             
                             {/* Preview Window Header Bar */}
-                            <div className={`px-4 py-3 border-b flex flex-wrap items-center justify-between gap-3 ${
-                                isDarkMode ? 'bg-[#161b22] border-[#30363d]' : 'bg-gray-50 border-gray-200'
+                            <div className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 ${
+                                isDarkMode ? 'bg-zinc-900/90 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
                             }`}>
                                 {/* Mock Platform Tabs */}
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1">
                                     <button
                                         type="button"
                                         onClick={() => setPreviewMode('github')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                                             previewMode === 'github'
-                                                ? isDarkMode ? 'bg-[#0d1117] text-white border border-[#30363d] shadow-sm' : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
-                                                : 'text-gray-400 hover:text-gray-200'
+                                                ? isDarkMode ? 'bg-zinc-950 text-white border border-zinc-800 shadow-sm' : 'bg-white text-zinc-900 border border-zinc-300 shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200'
                                         }`}
                                     >
-                                        <span>🐙</span>
-                                        <span>GitHub README</span>
+                                        <Github className="w-3.5 h-3.5" />
+                                        <span>README.md</span>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={() => setPreviewMode('discord')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                                             previewMode === 'discord'
-                                                ? isDarkMode ? 'bg-[#0d1117] text-white border border-[#30363d] shadow-sm' : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
-                                                : 'text-gray-400 hover:text-gray-200'
+                                                ? isDarkMode ? 'bg-zinc-950 text-white border border-zinc-800 shadow-sm' : 'bg-white text-zinc-900 border border-zinc-300 shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200'
                                         }`}
                                     >
-                                        <span>💬</span>
+                                        <MessageSquare className="w-3.5 h-3.5" />
                                         <span>Discord Bio</span>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={() => setPreviewMode('canvas')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                                             previewMode === 'canvas'
-                                                ? isDarkMode ? 'bg-[#0d1117] text-white border border-[#30363d] shadow-sm' : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
-                                                : 'text-gray-400 hover:text-gray-200'
+                                                ? isDarkMode ? 'bg-zinc-950 text-white border border-zinc-800 shadow-sm' : 'bg-white text-zinc-900 border border-zinc-300 shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200'
                                         }`}
                                     >
-                                        <span>🖼️</span>
+                                        <Monitor className="w-3.5 h-3.5" />
                                         <span>Canvas</span>
                                     </button>
                                 </div>
 
-                                {/* Canvas Background / Contrast Switcher */}
+                                {/* Canvas Background Switcher */}
                                 <div className="flex items-center gap-1">
-                                    <span className="text-[10px] uppercase font-semibold text-gray-400 mr-1">
-                                        Canvas:
+                                    <span className="text-[10px] uppercase font-semibold text-zinc-500 mr-1">
+                                        Backdrop:
                                     </span>
                                     {(['dark', 'light', 'dimmed', 'transparent'] as const).map(theme => (
                                         <button
@@ -1105,10 +1141,10 @@ function SvgGenerator() {
                                             onClick={() => setCanvasTheme(theme)}
                                             className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-all border ${
                                                 canvasTheme === theme
-                                                    ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                                                    ? 'bg-zinc-100 text-zinc-950 border-zinc-200 font-semibold'
                                                     : isDarkMode
-                                                        ? 'bg-gray-800/80 border-gray-700 text-gray-300 hover:bg-gray-700'
-                                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
+                                                        ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
+                                                        : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100'
                                             }`}
                                         >
                                             {theme}
@@ -1118,19 +1154,17 @@ function SvgGenerator() {
                             </div>
 
                             {/* PREVIEW CONTAINER BODY */}
-                            <div className={`p-6 flex items-center justify-center min-h-[320px] overflow-auto transition-colors ${getCanvasBgClass()}`}>
+                            <div className={`p-6 flex items-center justify-center min-h-[300px] overflow-auto transition-colors ${getCanvasBgClass()}`}>
                                 
                                 {previewMode === 'github' && (
-                                    <div className="w-full max-w-xl rounded-xl border border-gray-700/60 bg-[#0d1117]/80 shadow-2xl overflow-hidden">
+                                    <div className="w-full max-w-xl rounded-lg border border-zinc-700/60 bg-[#0d1117] shadow-xl overflow-hidden">
                                         {/* GitHub File Header */}
-                                        <div className="px-4 py-2 bg-[#161b22] border-b border-gray-700/60 flex items-center justify-between">
+                                        <div className="px-3.5 py-2 bg-[#161b22] border-b border-zinc-700/60 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="currentColor">
-                                                    <path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688Z" />
-                                                </svg>
-                                                <span className="text-xs font-semibold text-gray-200 font-mono">README.md</span>
+                                                <Github className="w-3.5 h-3.5 text-zinc-400" />
+                                                <span className="text-xs font-medium text-zinc-300 font-mono">README.md</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-[11px] text-gray-400 font-mono">
+                                            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-mono">
                                                 <span>main</span>
                                             </div>
                                         </div>
@@ -1142,7 +1176,7 @@ function SvgGenerator() {
                                                 src={svgUrl}
                                                 alt="TextFX Preview"
                                                 key={svgUrl}
-                                                className="max-w-full h-auto drop-shadow-md rounded-lg"
+                                                className="max-w-full h-auto drop-shadow-md rounded"
                                                 style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
                                             />
                                         </div>
@@ -1150,14 +1184,14 @@ function SvgGenerator() {
                                 )}
 
                                 {previewMode === 'discord' && (
-                                    <div className="w-full max-w-md rounded-2xl border border-[#232428] bg-[#111214] shadow-2xl p-4 text-[#dbdee1]">
-                                        <div className="flex items-center gap-3 border-b border-[#232428] pb-3 mb-4">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-lg font-bold text-white shadow">
-                                                👤
+                                    <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-[#111214] shadow-xl p-4 text-zinc-300">
+                                        <div className="flex items-center gap-3 border-b border-zinc-800 pb-3 mb-4">
+                                            <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-white shadow">
+                                                DEV
                                             </div>
                                             <div>
-                                                <div className="text-sm font-bold text-white">Developer #0001</div>
-                                                <div className="text-xs text-gray-400 font-medium">About Me</div>
+                                                <div className="text-xs font-bold text-white">Developer #0001</div>
+                                                <div className="text-[11px] text-zinc-400 font-medium">About Me</div>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-center py-2">
@@ -1188,50 +1222,50 @@ function SvgGenerator() {
                             </div>
 
                             {/* Preview Window Footer Quick Actions */}
-                            <div className={`p-4 border-t flex flex-wrap items-center justify-between gap-3 ${
-                                isDarkMode ? 'bg-[#161b22] border-[#30363d]' : 'bg-gray-50 border-gray-200'
+                            <div className={`px-4 py-3 border-t flex flex-wrap items-center justify-between gap-3 ${
+                                isDarkMode ? 'bg-zinc-900/90 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
                             }`}>
                                 {/* Zoom Controls */}
-                                <div className="flex items-center gap-1.5 text-xs">
+                                <div className="flex items-center gap-1 text-xs">
                                     <button
                                         type="button"
                                         onClick={() => setZoom(Math.max(50, zoom - 25))}
-                                        className={`px-2 py-1 rounded border ${isDarkMode ? 'border-gray-700 bg-gray-800 text-gray-300' : 'border-gray-200 bg-white text-gray-700'}`}
+                                        className={`px-2 py-0.5 rounded border text-xs ${isDarkMode ? 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700'}`}
                                     >
                                         -
                                     </button>
-                                    <span className="font-mono text-[11px] px-1 text-gray-400">{zoom}%</span>
+                                    <span className="font-mono text-[11px] px-1 text-zinc-400">{zoom}%</span>
                                     <button
                                         type="button"
                                         onClick={() => setZoom(Math.min(175, zoom + 25))}
-                                        className={`px-2 py-1 rounded border ${isDarkMode ? 'border-gray-700 bg-gray-800 text-gray-300' : 'border-gray-200 bg-white text-gray-700'}`}
+                                        className={`px-2 py-0.5 rounded border text-xs ${isDarkMode ? 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700'}`}
                                     >
                                         +
                                     </button>
                                 </div>
 
-                                {/* 1-Click Quick Action Buttons */}
+                                {/* 1-Click Action Buttons */}
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         onClick={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'quick-md', 'Markdown')}
-                                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 text-zinc-950 font-semibold text-xs shadow-sm hover:bg-white transition-all active:scale-95"
                                     >
-                                        <span>📋</span>
-                                        <span>{copiedKey === 'quick-md' ? 'Copied!' : 'Copy Markdown'}</span>
+                                        {copiedKey === 'quick-md' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                        <span>{copiedKey === 'quick-md' ? 'Copied' : 'Copy Markdown'}</span>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={handleDownload}
-                                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all active:scale-95 ${
                                             isDarkMode
-                                                ? 'border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700 hover:text-white'
-                                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                                                ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                                                : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 shadow-sm'
                                         }`}
                                     >
-                                        <span>💾</span>
-                                        <span>Download SVG</span>
+                                        <Download className="w-3.5 h-3.5" />
+                                        <span>Download</span>
                                     </button>
                                 </div>
                             </div>
@@ -1239,19 +1273,20 @@ function SvgGenerator() {
                         </div>
 
                         {/* Direct SVG URL Banner */}
-                        <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
-                            isDarkMode ? 'bg-gray-900/60 border-gray-800 text-gray-400' : 'bg-white border-gray-200 text-gray-600 shadow-sm'
+                        <div className={`px-3.5 py-2.5 rounded-lg border flex items-center justify-between gap-3 text-xs ${
+                            isDarkMode ? 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400' : 'bg-white border-zinc-200 text-zinc-600 shadow-sm'
                         }`}>
                             <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="font-mono text-blue-400 font-bold">API:</span>
-                                <span className="font-mono text-[11px] truncate">{svgUrl}</span>
+                                <span className="font-mono text-zinc-400 font-semibold">API:</span>
+                                <span className="font-mono text-[11px] truncate text-zinc-400">{svgUrl}</span>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => handleCopy(absoluteSvgUrl, 'api-url', 'API URL')}
-                                className="flex-shrink-0 text-blue-400 hover:text-blue-300 font-medium"
+                                className="flex-shrink-0 text-zinc-300 hover:text-white font-medium flex items-center gap-1"
                             >
-                                {copiedKey === 'api-url' ? '✓ Copied' : 'Copy'}
+                                {copiedKey === 'api-url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                <span>{copiedKey === 'api-url' ? 'Copied' : 'Copy'}</span>
                             </button>
                         </div>
 
