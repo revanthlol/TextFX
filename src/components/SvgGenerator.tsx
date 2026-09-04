@@ -27,6 +27,8 @@ import {
     Moon
 } from 'lucide-react';
 import { FontCombobox } from './FontCombobox';
+import { AnimatedLogo } from './AnimatedLogo';
+import { CommandPalette } from './ui/CommandPalette';
 import { GRADIENT_PRESETS } from '@/lib/gradients';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 import { ColorPicker } from './ui/ColorPicker';
@@ -171,8 +173,32 @@ function SvgGenerator() {
     // Active preset tracking
     const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
+    // Command palette state
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
     // Copy states
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+    // Global Cmd+K / Ctrl+K keyboard shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                setIsCommandPaletteOpen(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Jump to section helper
+    const handleJumpToSection = (section: string) => {
+        setOpenSections(prev => ({ ...prev, [section]: true }));
+        setTimeout(() => {
+            const el = document.getElementById(`section-${section}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+    };
 
     // Toggle accordion
     const toggleSection = (section: keyof typeof openSections) => {
@@ -452,20 +478,27 @@ function SvgGenerator() {
             }`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-md bg-zinc-900 border border-zinc-700 flex items-center justify-center font-mono font-bold text-white text-sm shadow-sm">
-                            <Zap className="w-4 h-4 text-zinc-100" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm tracking-tight">
-                                TextFX
-                            </span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800/80 text-zinc-400 border border-zinc-700">
-                                studio
-                            </span>
-                        </div>
+                        <AnimatedLogo />
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Cmd+K Command Palette Trigger */}
+                        <button
+                            type="button"
+                            onClick={() => setIsCommandPaletteOpen(true)}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                                isDarkMode 
+                                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700' 
+                                    : 'bg-zinc-50 border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 shadow-sm'
+                            }`}
+                            title="Open Command Palette (Cmd+K)"
+                        >
+                            <span className="hidden sm:inline text-[11px]">Search commands</span>
+                            <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                ⌘K
+                            </kbd>
+                        </button>
+
                         <button
                             type="button"
                             onClick={() => handleCopy(window.location.href, 'share', 'Share URL')}
@@ -476,7 +509,7 @@ function SvgGenerator() {
                             }`}
                         >
                             <Share2 className="w-3.5 h-3.5" />
-                            <span>Share</span>
+                            <span className="hidden sm:inline">Share</span>
                         </button>
 
                         <button
@@ -539,6 +572,7 @@ function SvgGenerator() {
                         
                         {/* 1. TEXT CONTENT & LINES */}
                         <AccordionSection
+                            id="section-text"
                             title="Text Content & Lines"
                             icon={<Type className="w-4 h-4" />}
                             badge={`${textLines.length} ${textLines.length === 1 ? 'line' : 'lines'}`}
@@ -697,6 +731,7 @@ function SvgGenerator() {
 
                         {/* 2. TYPOGRAPHY & LETTERING */}
                         <AccordionSection
+                            id="section-typography"
                             title="Typography & Lettering"
                             icon={<Sliders className="w-4 h-4" />}
                             isOpen={openSections.typography}
@@ -755,6 +790,7 @@ function SvgGenerator() {
 
                         {/* 3. ANIMATION & TIMING */}
                         <AccordionSection
+                            id="section-animation"
                             title="Animation & Cursor Suite"
                             icon={<Settings2 className="w-4 h-4" />}
                             isOpen={openSections.animation}
@@ -844,6 +880,7 @@ function SvgGenerator() {
 
                         {/* 4. CANVAS BACKGROUND & GRADIENTS */}
                         <AccordionSection
+                            id="section-colors"
                             title="Canvas Background & Gradients"
                             icon={<Palette className="w-4 h-4" />}
                             isOpen={openSections.colors}
@@ -921,6 +958,7 @@ function SvgGenerator() {
 
                         {/* 5. CANVAS DIMENSIONS & ALIGNMENT */}
                         <AccordionSection
+                            id="section-canvas"
                             title="Dimensions & Alignment"
                             icon={<Layers className="w-4 h-4" />}
                             isOpen={openSections.canvas}
@@ -1005,6 +1043,7 @@ function SvgGenerator() {
 
                         {/* 6. EXPORT & EMBED CODES */}
                         <AccordionSection
+                            id="section-export"
                             title="Export & Embed Snippets"
                             icon={<Code className="w-4 h-4" />}
                             isOpen={openSections.export}
@@ -1294,6 +1333,27 @@ function SvgGenerator() {
 
                 </div>
             </main>
+
+            {/* Command Palette Modal */}
+            <CommandPalette
+                isOpen={isCommandPaletteOpen}
+                onClose={() => setIsCommandPaletteOpen(false)}
+                onApplyPreset={applyPreset}
+                onSelectAnimation={(style) => {
+                    const updated = textLines.map(l => ({ ...l, animationStyle: style }));
+                    setTextLines(updated);
+                    showToast(`Animation set to ${style}`, 'sparkles');
+                }}
+                onJumpToSection={handleJumpToSection}
+                onCopyMarkdown={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'cmd-md', 'Markdown')}
+                onCopyHtml={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" />`, 'cmd-html', 'HTML Tag')}
+                onCopyUrl={() => handleCopy(absoluteSvgUrl, 'cmd-url', 'SVG URL')}
+                onDownloadSvg={handleDownload}
+                onShareConfig={() => handleCopy(window.location.href, 'cmd-share', 'Share URL')}
+                onReset={resetToDefaults}
+                onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+                isDarkMode={isDarkMode}
+            />
 
         </div>
     );

@@ -4,6 +4,7 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface AccordionSectionProps {
+    id?: string;
     title: string;
     icon: React.ReactNode;
     badge?: string;
@@ -15,6 +16,7 @@ interface AccordionSectionProps {
 }
 
 export function AccordionSection({
+    id,
     title,
     icon,
     badge,
@@ -25,7 +27,7 @@ export function AccordionSection({
     className = ''
 }: AccordionSectionProps) {
     return (
-        <div className={`rounded-lg border transition-all duration-150 overflow-hidden ${
+        <div id={id} className={`rounded-lg border transition-all duration-150 overflow-hidden ${
             isDarkMode 
                 ? 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700/80' 
                 : 'border-zinc-200 bg-white hover:border-zinc-300 shadow-sm'
