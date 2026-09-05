@@ -489,7 +489,7 @@ function SvgGenerator() {
             await downloadPngFromSvg(svgUrl, width, height, 'textfx-banner.png');
             showToast('Downloaded High-Res PNG (2x)', 'sparkles');
         } catch {
-            showToast('Failed to generate PNG snapshot', 'rotate');
+            showToast('Failed to generate PNG snapshot', 'info');
         }
     };
 
@@ -545,7 +545,7 @@ function SvgGenerator() {
             showToast('Configuration loaded successfully', 'sparkles');
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Invalid JSON config';
-            showToast(msg, 'rotate');
+            showToast(msg, 'info');
         } finally {
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
@@ -558,7 +558,7 @@ function SvgGenerator() {
             const text = await res.text();
             handleCopy(text, 'raw-svg', 'Raw SVG XML');
         } catch {
-            showToast('Failed to fetch SVG markup', 'rotate');
+            showToast('Failed to fetch SVG markup', 'info');
         }
     };
 
