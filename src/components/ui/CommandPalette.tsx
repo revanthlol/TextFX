@@ -20,7 +20,11 @@ import {
     Download, 
     Moon,
     ArrowRight,
-    BookOpen
+    BookOpen,
+    Image as ImageIcon,
+    FileJson,
+    Upload,
+    QrCode
 } from 'lucide-react';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 
@@ -44,6 +48,10 @@ interface CommandPaletteProps {
     onCopyHtml: () => void;
     onCopyUrl: () => void;
     onDownloadSvg: () => void;
+    onDownloadPng?: () => void;
+    onExportJson?: () => void;
+    onImportJson?: () => void;
+    onOpenShare?: () => void;
     onShareConfig: () => void;
     onReset: () => void;
     onToggleTheme: () => void;
@@ -60,6 +68,10 @@ export function CommandPalette({
     onCopyHtml,
     onCopyUrl,
     onDownloadSvg,
+    onDownloadPng,
+    onExportJson,
+    onImportJson,
+    onOpenShare,
     onShareConfig,
     onReset,
     onToggleTheme,
@@ -172,9 +184,41 @@ export function CommandPalette({
             icon: <Download className="w-4 h-4" />,
             onSelect: onDownloadSvg
         },
+        ...(onDownloadPng ? [{
+            id: 'action-download-png',
+            title: 'Download High-Res PNG (2x)',
+            subtitle: 'Rasterize current frame as high-DPI image snapshot',
+            category: 'Quick Actions' as const,
+            icon: <ImageIcon className="w-4 h-4" />,
+            onSelect: onDownloadPng
+        }] : []),
+        ...(onExportJson ? [{
+            id: 'action-export-json',
+            title: 'Export Configuration (JSON)',
+            subtitle: 'Save current settings to textfx-config.json file',
+            category: 'Quick Actions' as const,
+            icon: <FileJson className="w-4 h-4" />,
+            onSelect: onExportJson
+        }] : []),
+        ...(onImportJson ? [{
+            id: 'action-import-json',
+            title: 'Import Configuration (JSON)',
+            subtitle: 'Upload a saved textfx-config.json configuration file',
+            category: 'Quick Actions' as const,
+            icon: <Upload className="w-4 h-4" />,
+            onSelect: onImportJson
+        }] : []),
+        ...(onOpenShare ? [{
+            id: 'action-share-qr',
+            title: 'Share / Scan QR Code',
+            subtitle: 'Open QR code dialog to test live on your mobile device',
+            category: 'Quick Actions' as const,
+            icon: <QrCode className="w-4 h-4" />,
+            onSelect: onOpenShare
+        }] : []),
         {
             id: 'action-share',
-            title: 'Share Config Link',
+            title: 'Copy Share URL',
             subtitle: 'Copy shareable web studio URL with all settings encoded',
             category: 'Quick Actions' as const,
             icon: <Share2 className="w-4 h-4" />,
@@ -253,7 +297,8 @@ export function CommandPalette({
         }
     ], [
         onApplyPreset, onSelectAnimation, onCopyMarkdown, onCopyHtml,
-        onCopyUrl, onDownloadSvg, onShareConfig, onReset, onJumpToSection,
+        onCopyUrl, onDownloadSvg, onDownloadPng, onExportJson, onImportJson,
+        onOpenShare, onShareConfig, onReset, onJumpToSection,
         onToggleTheme, isDarkMode
     ]);
 

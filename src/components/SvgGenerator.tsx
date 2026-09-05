@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
     Terminal, 
@@ -27,13 +27,19 @@ import {
     Layers,
     Moon,
     Eye,
-    BookOpen
+    BookOpen,
+    Image as ImageIcon,
+    FileJson,
+    Upload,
+    FileCode
 } from 'lucide-react';
 import { FontCombobox } from './FontCombobox';
 import { AnimatedLogo } from './AnimatedLogo';
 import { CommandPalette } from './ui/CommandPalette';
 import { BottomSheet } from './ui/BottomSheet';
 import { ReadmePreviewFrame } from './ui/ReadmePreviewFrame';
+import { ShareModal } from './ui/ShareModal';
+import { downloadPngFromSvg, exportConfigJson, importConfigJson } from '@/lib/exportUtils';
 import { GRADIENT_PRESETS } from '@/lib/gradients';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 import { ColorPicker } from './ui/ColorPicker';
@@ -126,6 +132,8 @@ function SvgGenerator() {
     const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light' | 'dimmed' | 'transparent'>('dark');
     const [zoom, setZoom] = useState(100);
     const [isPreviewSheetOpen, setIsPreviewSheetOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Text Lines
     const [textLines, setTextLines] = useState<TextLine[]>([
@@ -475,6 +483,85 @@ function SvgGenerator() {
         }
     };
 
+    // Download high-DPI PNG snapshot
+    const handleDownloadPng = async () => {
+        try {
+            await downloadPngFromSvg(svgUrl, width, height, 'textfx-banner.png');
+            showToast('Downloaded High-Res PNG (2x)', 'sparkles');
+        } catch {
+            showToast('Failed to generate PNG snapshot', 'rotate');
+        }
+    };
+
+    // Export JSON configuration file
+    const handleExportJson = () => {
+        const config = {
+            version: '1.0',
+            textLines,
+            width,
+            height,
+            backgroundColor,
+            backgroundGradient,
+            backgroundGradientAngle,
+            backgroundType,
+            hAlign,
+            vAlign,
+            cursorChar,
+            cursorColor,
+            cursorBlinkSpeed,
+            hideCursorOnComplete,
+            pauseDuration,
+            loop,
+            vanishBeforeNextLine
+        };
+        exportConfigJson(config, 'textfx-config.json');
+        showToast('Exported configuration JSON', 'sparkles');
+    };
+
+    // Import JSON configuration file
+    const handleImportJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const data = await importConfigJson(file);
+            if (Array.isArray(data.textLines)) setTextLines(data.textLines as TextLine[]);
+            if (data.width) setWidth(Number(data.width));
+            if (data.height) setHeight(Number(data.height));
+            if (typeof data.backgroundColor === 'string') setBackgroundColor(data.backgroundColor);
+            if (typeof data.backgroundGradient === 'string') setBackgroundGradient(data.backgroundGradient);
+            if (data.backgroundGradientAngle) setBackgroundGradientAngle(Number(data.backgroundGradientAngle));
+            if (data.backgroundType === 'transparent' || data.backgroundType === 'solid' || data.backgroundType === 'gradient') {
+                setBackgroundType(data.backgroundType);
+            }
+            if (data.hAlign === 'left' || data.hAlign === 'center' || data.hAlign === 'right') setHAlign(data.hAlign);
+            if (data.vAlign === 'top' || data.vAlign === 'center' || data.vAlign === 'bottom') setVAlign(data.vAlign);
+            if (typeof data.cursorChar === 'string') setCursorChar(data.cursorChar);
+            if (typeof data.cursorColor === 'string') setCursorColor(data.cursorColor);
+            if (data.cursorBlinkSpeed) setCursorBlinkSpeed(Number(data.cursorBlinkSpeed));
+            if (data.hideCursorOnComplete !== undefined) setHideCursorOnComplete(Boolean(data.hideCursorOnComplete));
+            if (data.pauseDuration) setPauseDuration(Number(data.pauseDuration));
+            if (data.loop !== undefined) setLoop(Boolean(data.loop));
+            if (data.vanishBeforeNextLine !== undefined) setVanishBeforeNextLine(Boolean(data.vanishBeforeNextLine));
+            showToast('Configuration loaded successfully', 'sparkles');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Invalid JSON config';
+            showToast(msg, 'rotate');
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    // Copy raw SVG markup string
+    const handleCopyRawSvg = async () => {
+        try {
+            const res = await fetch(svgUrl);
+            const text = await res.text();
+            handleCopy(text, 'raw-svg', 'Raw SVG XML');
+        } catch {
+            showToast('Failed to fetch SVG markup', 'rotate');
+        }
+    };
+
     return (
         <div className={`min-h-screen transition-colors duration-150 ${isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
             
@@ -507,15 +594,15 @@ function SvgGenerator() {
 
                         <button
                             type="button"
-                            onClick={() => handleCopy(window.location.href, 'share', 'Share URL')}
+                            onClick={() => setIsShareModalOpen(true)}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                                 isDarkMode 
                                     ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white' 
                                     : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100 shadow-sm'
                             }`}
                         >
-                            <Share2 className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Share</span>
+                            <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="hidden sm:inline">Share / QR</span>
                         </button>
 
                         <button
@@ -1068,7 +1155,7 @@ function SvgGenerator() {
                             onToggle={() => toggleSection('export')}
                             isDarkMode={isDarkMode}
                         >
-                            <div className="space-y-3.5">
+                            <div className="space-y-4">
                                 {/* Markdown */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
@@ -1095,7 +1182,7 @@ function SvgGenerator() {
                                         <span className="font-medium text-zinc-400">HTML &lt;img&gt; Tag</span>
                                         <button
                                             type="button"
-                                            onClick={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" />`, 'html', 'HTML Tag')}
+                                            onClick={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" width="${width}" height="${height}" />`, 'html', 'HTML Tag')}
                                             className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
                                         >
                                             {copiedKey === 'html' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1105,27 +1192,104 @@ function SvgGenerator() {
                                     <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
                                         isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
                                     }`}>
-                                        {`<img src="${absoluteSvgUrl}" alt="TextFX Animation" />`}
+                                        {`<img src="${absoluteSvgUrl}" alt="TextFX Animation" width="${width}" height="${height}" />`}
                                     </div>
                                 </div>
 
-                                {/* Direct SVG URL */}
+                                {/* React / Next.js JSX */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-medium text-zinc-400">Direct SVG URL</span>
+                                        <span className="font-medium text-zinc-400">React / Next.js JSX</span>
                                         <button
                                             type="button"
-                                            onClick={() => handleCopy(absoluteSvgUrl, 'url', 'Direct SVG URL')}
+                                            onClick={() => handleCopy(`<Image src="${absoluteSvgUrl}" alt="TextFX Animation" width={${width}} height={${height}} unoptimized />`, 'jsx', 'React JSX')}
                                             className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
                                         >
-                                            {copiedKey === 'url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                            <span>{copiedKey === 'url' ? 'Copied' : 'Copy'}</span>
+                                            {copiedKey === 'jsx' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            <span>{copiedKey === 'jsx' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
                                     <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
                                         isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
                                     }`}>
-                                        {absoluteSvgUrl}
+                                        {`<Image src="${absoluteSvgUrl}" alt="TextFX Animation" width={${width}} height={${height}} unoptimized />`}
+                                    </div>
+                                </div>
+
+                                {/* Direct SVG URL & Raw XML */}
+                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800/60">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCopy(absoluteSvgUrl, 'url', 'Direct SVG URL')}
+                                        className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
+                                            isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                        }`}
+                                    >
+                                        {copiedKey === 'url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                        <span>Copy API URL</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyRawSvg}
+                                        className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
+                                            isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                        }`}
+                                    >
+                                        {copiedKey === 'raw-svg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileCode className="w-3.5 h-3.5" />}
+                                        <span>Copy Raw SVG XML</span>
+                                    </button>
+                                </div>
+
+                                {/* File Downloads & Backup */}
+                                <div className="space-y-2 pt-3 border-t border-zinc-800/60">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
+                                        Downloads & Configuration Backups
+                                    </span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleDownload}
+                                            className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100 shadow-sm'
+                                            }`}
+                                        >
+                                            <Download className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span>Download SVG</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleDownloadPng}
+                                            className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100 shadow-sm'
+                                            }`}
+                                        >
+                                            <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+                                            <span>Download PNG (2x)</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleExportJson}
+                                            className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                            }`}
+                                        >
+                                            <FileJson className="w-3.5 h-3.5 text-amber-400" />
+                                            <span>Export Config JSON</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                            }`}
+                                        >
+                                            <Upload className="w-3.5 h-3.5 text-purple-400" />
+                                            <span>Import Config JSON</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1496,6 +1660,23 @@ function SvgGenerator() {
                 </div>
             </BottomSheet>
 
+            {/* Hidden File Input for JSON Config Import */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImportJson}
+                accept=".json,application/json"
+                className="hidden"
+            />
+
+            {/* Share / QR Code Modal */}
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                shareUrl={typeof window !== 'undefined' ? window.location.href : absoluteSvgUrl}
+                isDarkMode={isDarkMode}
+            />
+
             {/* Command Palette Modal */}
             <CommandPalette
                 isOpen={isCommandPaletteOpen}
@@ -1508,9 +1689,13 @@ function SvgGenerator() {
                 }}
                 onJumpToSection={handleJumpToSection}
                 onCopyMarkdown={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'cmd-md', 'Markdown')}
-                onCopyHtml={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" />`, 'cmd-html', 'HTML Tag')}
+                onCopyHtml={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" width="${width}" height="${height}" />`, 'cmd-html', 'HTML Tag')}
                 onCopyUrl={() => handleCopy(absoluteSvgUrl, 'cmd-url', 'SVG URL')}
                 onDownloadSvg={handleDownload}
+                onDownloadPng={handleDownloadPng}
+                onExportJson={handleExportJson}
+                onImportJson={() => fileInputRef.current?.click()}
+                onOpenShare={() => setIsShareModalOpen(true)}
                 onShareConfig={() => handleCopy(window.location.href, 'cmd-share', 'Share URL')}
                 onReset={resetToDefaults}
                 onToggleTheme={() => setIsDarkMode(!isDarkMode)}
