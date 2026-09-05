@@ -24,11 +24,14 @@ import {
     MessageSquare, 
     Monitor,
     Layers,
-    Moon
+    Moon,
+    Eye
 } from 'lucide-react';
 import { FontCombobox } from './FontCombobox';
 import { AnimatedLogo } from './AnimatedLogo';
 import { CommandPalette } from './ui/CommandPalette';
+import { BottomSheet } from './ui/BottomSheet';
+import { ReadmePreviewFrame } from './ui/ReadmePreviewFrame';
 import { GRADIENT_PRESETS } from '@/lib/gradients';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 import { ColorPicker } from './ui/ColorPicker';
@@ -120,6 +123,7 @@ function SvgGenerator() {
     const [previewMode, setPreviewMode] = useState<'github' | 'discord' | 'canvas'>('github');
     const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light' | 'dimmed' | 'transparent'>('dark');
     const [zoom, setZoom] = useState(100);
+    const [isPreviewSheetOpen, setIsPreviewSheetOpen] = useState(false);
 
     // Text Lines
     const [textLines, setTextLines] = useState<TextLine[]>([
@@ -564,7 +568,7 @@ function SvgGenerator() {
             </div>
 
             {/* Split-Screen Studio Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     
                     {/* LEFT PANE (5 cols): Form Accordions */}
@@ -1196,27 +1200,13 @@ function SvgGenerator() {
                             <div className={`p-6 flex items-center justify-center min-h-[300px] overflow-auto transition-colors ${getCanvasBgClass()}`}>
                                 
                                 {previewMode === 'github' && (
-                                    <div className="w-full max-w-xl rounded-lg border border-zinc-700/60 bg-[#0d1117] shadow-xl overflow-hidden">
-                                        {/* GitHub File Header */}
-                                        <div className="px-3.5 py-2 bg-[#161b22] border-b border-zinc-700/60 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Github className="w-3.5 h-3.5 text-zinc-400" />
-                                                <span className="text-xs font-medium text-zinc-300 font-mono">README.md</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-mono">
-                                                <span>main</span>
-                                            </div>
-                                        </div>
-                                        {/* GitHub Readme Content */}
-                                        <div className="p-6 flex flex-col items-center justify-center">
-                                            {/* Live SVG image */}
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={svgUrl}
-                                                alt="TextFX Preview"
-                                                key={svgUrl}
-                                                className="max-w-full h-auto drop-shadow-md rounded"
-                                                style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
+                                    <div className="w-full max-w-xl flex justify-center">
+                                        <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }} className="w-full">
+                                            <ReadmePreviewFrame
+                                                svgUrl={svgUrl}
+                                                width={width}
+                                                height={height}
+                                                isDarkMode={canvasTheme === 'dark' || canvasTheme === 'dimmed'}
                                             />
                                         </div>
                                     </div>
@@ -1333,6 +1323,164 @@ function SvgGenerator() {
 
                 </div>
             </main>
+
+            {/* Mobile Sticky Quick Action Bar (Floating at bottom on < lg screens) */}
+            <div className={`fixed inset-x-0 bottom-0 z-40 lg:hidden p-3 border-t backdrop-blur-xl flex items-center justify-between gap-2.5 transition-all ${
+                isDarkMode ? 'bg-zinc-950/90 border-zinc-800' : 'bg-white/95 border-zinc-200 shadow-xl'
+            }`}>
+                <button
+                    type="button"
+                    onClick={() => setIsPreviewSheetOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-semibold text-xs active:scale-95 transition-all shadow-sm"
+                >
+                    <Eye className="w-4 h-4" />
+                    <span>Live Preview</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">
+                        {width}×{height}
+                    </span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'mobile-quick-md', 'Markdown')}
+                    className="py-2.5 px-3.5 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs flex items-center gap-1.5 active:scale-95 shadow-sm transition-all"
+                >
+                    {copiedKey === 'mobile-quick-md' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>Markdown</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={handleDownload}
+                    className={`p-2.5 rounded-lg border text-xs font-medium active:scale-95 transition-all ${
+                        isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700'
+                    }`}
+                    title="Download SVG"
+                >
+                    <Download className="w-4 h-4" />
+                </button>
+            </div>
+
+            {/* Mobile Bottom Sheet Drawer */}
+            <BottomSheet
+                isOpen={isPreviewSheetOpen}
+                onClose={() => setIsPreviewSheetOpen(false)}
+                title="Live SVG Preview"
+                description={`${width} × ${height}px • ${textLines.length} ${textLines.length === 1 ? 'line' : 'lines'}`}
+                isDarkMode={isDarkMode}
+            >
+                <div className="space-y-4 pb-4">
+                    {/* View Controls in Bottom Sheet */}
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => setPreviewMode('github')}
+                                className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
+                                    previewMode === 'github'
+                                        ? 'bg-zinc-100 text-zinc-950 border-zinc-200 font-semibold'
+                                        : isDarkMode
+                                            ? 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                            : 'bg-white border-zinc-300 text-zinc-600'
+                                }`}
+                            >
+                                GitHub README
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPreviewMode('canvas')}
+                                className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
+                                    previewMode === 'canvas'
+                                        ? 'bg-zinc-100 text-zinc-950 border-zinc-200 font-semibold'
+                                        : isDarkMode
+                                            ? 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                            : 'bg-white border-zinc-300 text-zinc-600'
+                                }`}
+                            >
+                                Raw Canvas
+                            </button>
+                        </div>
+
+                        {/* Theme toggles for canvas */}
+                        <div className="flex items-center gap-1">
+                            {(['dark', 'light'] as const).map(theme => (
+                                <button
+                                    key={theme}
+                                    type="button"
+                                    onClick={() => setCanvasTheme(theme)}
+                                    className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize border ${
+                                        canvasTheme === theme
+                                            ? 'bg-zinc-100 text-zinc-950 border-zinc-200 font-semibold'
+                                            : isDarkMode
+                                                ? 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                                : 'bg-white border-zinc-300 text-zinc-600'
+                                    }`}
+                                >
+                                    {theme}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Preview render container in sheet */}
+                    <div className={`p-4 rounded-xl border flex items-center justify-center overflow-x-auto min-h-[160px] ${getCanvasBgClass()}`}>
+                        {previewMode === 'github' ? (
+                            <ReadmePreviewFrame
+                                svgUrl={svgUrl}
+                                width={width}
+                                height={height}
+                                isDarkMode={canvasTheme === 'dark' || canvasTheme === 'dimmed'}
+                            />
+                        ) : (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                                src={svgUrl}
+                                alt="TextFX Mobile Preview"
+                                key={svgUrl}
+                                className="max-w-full h-auto drop-shadow-md"
+                            />
+                        )}
+                    </div>
+
+                    {/* Action buttons inside drawer */}
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'sheet-md', 'Markdown')}
+                            className="w-full py-2.5 px-3 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                        >
+                            {copiedKey === 'sheet-md' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                            <span>Copy Markdown</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleDownload}
+                            className={`w-full py-2.5 px-3 rounded-lg border font-medium text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-800'
+                            }`}
+                        >
+                            <Download className="w-4 h-4" />
+                            <span>Download SVG</span>
+                        </button>
+                    </div>
+
+                    {/* API URL row in sheet */}
+                    <div className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 text-xs ${
+                        isDarkMode ? 'bg-zinc-900/60 border-zinc-800 text-zinc-400' : 'bg-zinc-100 border-zinc-200 text-zinc-600'
+                    }`}>
+                        <span className="font-mono text-[11px] truncate flex-1">{svgUrl}</span>
+                        <button
+                            type="button"
+                            onClick={() => handleCopy(absoluteSvgUrl, 'sheet-url', 'API URL')}
+                            className="text-zinc-300 hover:text-white font-medium flex-shrink-0 flex items-center gap-1"
+                        >
+                            {copiedKey === 'sheet-url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>Copy URL</span>
+                        </button>
+                    </div>
+                </div>
+            </BottomSheet>
 
             {/* Command Palette Modal */}
             <CommandPalette
