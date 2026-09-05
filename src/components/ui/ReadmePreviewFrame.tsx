@@ -44,37 +44,16 @@ export const ReadmePreviewFrame: React.FC<ReadmePreviewFrameProps> = ({
                 </div>
             </div>
 
-            {/* GitHub Markdown Content Area */}
-            <div className="p-6 md:p-8 space-y-6">
-                {/* Mock README Heading */}
-                <div className={`border-b pb-2 ${isDarkMode ? 'border-[#21262d]' : 'border-[#d8dee4]'}`}>
-                    <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-                        My Awesome Project
-                    </h1>
-                </div>
-
-                <p className={`text-xs md:text-sm ${isDarkMode ? 'text-[#8b949e]' : 'text-[#57606a]'}`}>
-                    Welcome to the repository. The banner below is dynamically generated via TextFX SVG API.
-                </p>
-
-                {/* SVG Embed in GitHub Readme container */}
-                <div className="flex justify-center items-center py-2 overflow-x-auto">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={svgUrl}
-                        alt="TextFX Readme Banner"
-                        width={width}
-                        height={height}
-                        className="max-w-full h-auto object-contain rounded drop-shadow-sm"
-                    />
-                </div>
-
-                <div className={`pt-4 border-t text-[11px] font-mono flex items-center justify-between ${
-                    isDarkMode ? 'border-[#21262d] text-[#6e7681]' : 'border-[#d8dee4] text-[#8c959f]'
-                }`}>
-                    <span>Rendered as GitHub SVG embed</span>
-                    <span>MIT License</span>
-                </div>
+            {/* GitHub Markdown Content Area - Pure SVG rendering */}
+            <div className="p-6 md:p-10 flex items-center justify-center overflow-x-auto min-h-[160px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src={svgUrl}
+                    alt="TextFX Readme Banner"
+                    width={width}
+                    height={height}
+                    className="max-w-full h-auto object-contain rounded drop-shadow-sm"
+                />
             </div>
         </div>
     );

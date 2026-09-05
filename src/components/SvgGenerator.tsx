@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { 
     Terminal, 
     Zap, 
@@ -25,7 +26,8 @@ import {
     Monitor,
     Layers,
     Moon,
-    Eye
+    Eye,
+    BookOpen
 } from 'lucide-react';
 import { FontCombobox } from './FontCombobox';
 import { AnimatedLogo } from './AnimatedLogo';
@@ -526,6 +528,18 @@ function SvgGenerator() {
                         >
                             <RotateCcw className="w-3.5 h-3.5" />
                         </button>
+
+                        <Link
+                            href="/docs"
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                                isDarkMode 
+                                    ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white' 
+                                    : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100 shadow-sm'
+                            }`}
+                        >
+                            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="hidden sm:inline">Docs</span>
+                        </Link>
 
                         <button
                             type="button"

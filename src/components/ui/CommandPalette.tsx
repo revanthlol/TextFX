@@ -19,7 +19,8 @@ import {
     Share2, 
     Download, 
     Moon,
-    ArrowRight
+    ArrowRight,
+    BookOpen
 } from 'lucide-react';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 
@@ -178,6 +179,16 @@ export function CommandPalette({
             category: 'Quick Actions' as const,
             icon: <Share2 className="w-4 h-4" />,
             onSelect: onShareConfig
+        },
+        {
+            id: 'action-open-docs',
+            title: 'Open API Documentation',
+            subtitle: 'View parameter reference, code snippets, and GET /api/svg guide',
+            category: 'Quick Actions' as const,
+            icon: <BookOpen className="w-4 h-4" />,
+            onSelect: () => {
+                window.location.href = '/docs';
+            }
         },
         {
             id: 'action-reset',
