@@ -14,6 +14,7 @@ interface NumberInputStepperProps {
     isDarkMode?: boolean;
     className?: string;
     description?: string;
+    presets?: number[];
 }
 
 export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
@@ -27,8 +28,10 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
     isDarkMode = true,
     className = '',
     description,
+    presets,
 }) => {
     const [inputValue, setInputValue] = useState<string>(value.toString());
+    const [isFocused, setIsFocused] = useState<boolean>(false);
 
     // Sync input string with incoming value
     useEffect(() => {
@@ -43,6 +46,7 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
     };
 
     const handleBlurOrCommit = () => {
+        setIsFocused(false);
         const parsed = parseFloat(inputValue);
         if (isNaN(parsed)) {
             setInputValue(value.toString());
@@ -78,30 +82,27 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
         setInputValue(next.toString());
     };
 
-    // Calculate percentage for progress fill
-    const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
-
     return (
         <div className={`space-y-1.5 ${className}`}>
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                     <label
-                        className={`block text-[11px] font-medium uppercase tracking-wider ${
+                        className={`block text-[11px] font-medium uppercase tracking-wider truncate ${
                             isDarkMode ? 'text-zinc-400' : 'text-zinc-600'
                         }`}
                     >
                         {label}
                     </label>
                     {description && (
-                        <p className={`text-[10px] ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                        <p className={`text-[10px] truncate ${isDarkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
                             {description}
                         </p>
                     )}
                 </div>
 
-                {/* Compact Stepper & Editable Field */}
+                {/* Compact Stepper & Editable Field (NO SLIDERS) */}
                 <div
-                    className={`flex items-center rounded-lg border overflow-hidden transition-all ${
+                    className={`flex items-center rounded-lg border overflow-hidden transition-all shrink-0 ${
                         isDarkMode
                             ? 'bg-zinc-950 border-zinc-800 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30'
                             : 'bg-white border-zinc-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/30 shadow-sm'
@@ -127,15 +128,16 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
                             inputMode="decimal"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
+                            onFocus={() => setIsFocused(true)}
                             onBlur={handleBlurOrCommit}
                             onKeyDown={handleKeyDown}
-                            className={`w-12 text-center text-xs font-mono font-semibold bg-transparent outline-none py-1 ${
+                            className={`w-11 text-center text-xs font-mono font-semibold bg-transparent outline-none py-1 ${
                                 isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
                             }`}
                         />
                         {unit && (
                             <span
-                                className={`text-[10px] font-mono select-none pr-1 ${
+                                className={`text-[10px] font-mono select-none pr-0.5 ${
                                     isDarkMode ? 'text-zinc-500' : 'text-zinc-400'
                                 }`}
                             >
@@ -160,29 +162,38 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
                 </div>
             </div>
 
-            {/* Range Scrubber Track */}
-            <div className="relative flex items-center group py-0.5">
-                <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    step={step}
-                    value={value}
-                    onChange={(e) => {
-                        const next = parseFloat(e.target.value);
-                        onChange(next);
-                        setInputValue(next.toString());
-                    }}
-                    className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none transition-all ${
-                        isDarkMode ? 'bg-zinc-800' : 'bg-zinc-200'
-                    }`}
-                    style={{
-                        background: isDarkMode
-                            ? `linear-gradient(to right, #10b981 ${percentage}%, #27272a ${percentage}%)`
-                            : `linear-gradient(to right, #2563eb ${percentage}%, #e4e4e7 ${percentage}%)`,
-                    }}
-                />
-            </div>
+            {/* Quick Clickable Presets Row (Shows presets cleanly) */}
+            {presets && presets.length > 0 && (
+                <div className={`flex items-center gap-1 overflow-x-auto no-scrollbar transition-opacity duration-150 ${
+                    isFocused ? 'opacity-100' : 'opacity-80 hover:opacity-100'
+                }`}>
+                    {presets.map((preset) => {
+                        const isCurrent = value === preset;
+                        return (
+                            <button
+                                key={preset}
+                                type="button"
+                                onMouseDown={(e) => {
+                                    e.preventDefault(); // prevent losing focus
+                                    onChange(preset);
+                                    setInputValue(preset.toString());
+                                }}
+                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-all shrink-0 ${
+                                    isCurrent
+                                        ? isDarkMode
+                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold'
+                                            : 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold'
+                                        : isDarkMode
+                                        ? 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                                        : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                                }`}
+                            >
+                                {preset}{unit ? `${unit}` : ''}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };

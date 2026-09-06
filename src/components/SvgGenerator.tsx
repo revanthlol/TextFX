@@ -28,7 +28,6 @@ import {
     Moon,
     Eye,
     BookOpen,
-    Image as ImageIcon,
     FileJson,
     Upload,
     FileCode
@@ -41,7 +40,8 @@ import { ReadmePreviewFrame } from './ui/ReadmePreviewFrame';
 import { ShareModal } from './ui/ShareModal';
 import { CustomSelect, SelectOption } from './ui/CustomSelect';
 import { NumberInputStepper } from './ui/NumberInputStepper';
-import { downloadPngFromSvg, exportConfigJson, importConfigJson } from '@/lib/exportUtils';
+import { exportConfigJson, importConfigJson } from '@/lib/exportUtils';
+import { compressConfig, decompressConfig } from '@/lib/urlCompression';
 import { GRADIENT_PRESETS } from '@/lib/gradients';
 import { PRESETS, TextFXPreset } from '@/data/presets';
 import { ColorPicker } from './ui/ColorPicker';
@@ -91,18 +91,16 @@ const DEFAULT_VALUES = {
 };
 
 const ANIMATION_STYLES = [
-    { id: 'typewriter', label: 'Typewriter', desc: 'Progressive typing effect' },
-    { id: 'fade', label: 'Fade In/Out', desc: 'Smooth opacity pulse' },
-    { id: 'slide-up', label: 'Slide Up', desc: 'Slide in from bottom' },
-    { id: 'wave', label: 'Wave', desc: 'Sine wave bounce' },
-    { id: 'glitch', label: 'Glitch', desc: 'Cyber chromatic jitter' },
+    { id: 'typewriter', label: 'Typewriter' },
+    { id: 'fade', label: 'Fade In/Out' },
+    { id: 'slide-up', label: 'Slide Up' },
+    { id: 'wave', label: 'Wave' },
+    { id: 'glitch', label: 'Glitch' },
 ];
 
 const ANIMATION_SELECT_OPTIONS: SelectOption[] = ANIMATION_STYLES.map(a => ({
     value: a.id,
     label: a.label,
-    description: a.desc,
-    badge: a.id.toUpperCase(),
 }));
 
 const TEXT_GRADIENT_SELECT_OPTIONS: SelectOption[] = [
@@ -268,12 +266,58 @@ function SvgGenerator() {
         showToast(`Preset: ${preset.name}`, 'sparkles');
     }, [showToast]);
 
-    // Initialize from URL params if present (Full hydration from shared URLs)
+    // Initialize from URL params (supports ?c=... compressed configs and legacy params)
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const params = new URLSearchParams(window.location.search);
         if ([...params.keys()].length === 0) return;
 
+        // 1. Check compressed config ?c=...
+        if (params.has('c')) {
+            const decompressed = decompressConfig<Record<string, unknown>>(params.get('c')!);
+            if (decompressed && typeof decompressed === 'object') {
+                if (decompressed.lines && Array.isArray(decompressed.lines)) {
+                    const parsed = decompressed.lines.map((item: Partial<TextLine>) => ({
+                        text: typeof item.text === 'string' ? item.text : String(item || ''),
+                        font: item.font || DEFAULT_VALUES.font,
+                        color: item.color || DEFAULT_VALUES.color,
+                        fontSize: typeof item.fontSize === 'number' ? item.fontSize : DEFAULT_VALUES.fontSize,
+                        letterSpacing: item.letterSpacing || DEFAULT_VALUES.letterSpacing,
+                        typingSpeed: typeof item.typingSpeed === 'number' ? item.typingSpeed : DEFAULT_VALUES.typingSpeed,
+                        deleteSpeed: typeof item.deleteSpeed === 'number' ? item.deleteSpeed : DEFAULT_VALUES.deleteSpeed,
+                        fontWeight: item.fontWeight || DEFAULT_VALUES.fontWeight,
+                        lineHeight: typeof item.lineHeight === 'number' ? item.lineHeight : DEFAULT_VALUES.lineHeight,
+                        animationStyle: item.animationStyle || DEFAULT_VALUES.animationStyle,
+                        gradient: item.gradient || DEFAULT_VALUES.gradient,
+                    }));
+                    setTextLines(parsed);
+                }
+                if (decompressed.width) setWidth(Number(decompressed.width));
+                if (decompressed.height) setHeight(Number(decompressed.height));
+                if (decompressed.backgroundType && (decompressed.backgroundType === 'transparent' || decompressed.backgroundType === 'solid' || decompressed.backgroundType === 'gradient')) {
+                    setBackgroundType(decompressed.backgroundType);
+                }
+                if (decompressed.backgroundColor) setBackgroundColor(String(decompressed.backgroundColor));
+                if (decompressed.backgroundGradient) setBackgroundGradient(String(decompressed.backgroundGradient));
+                if (decompressed.backgroundGradientAngle) setBackgroundGradientAngle(Number(decompressed.backgroundGradientAngle));
+                if (decompressed.hAlign && (decompressed.hAlign === 'left' || decompressed.hAlign === 'center' || decompressed.hAlign === 'right')) {
+                    setHAlign(decompressed.hAlign);
+                }
+                if (decompressed.vAlign && (decompressed.vAlign === 'top' || decompressed.vAlign === 'center' || decompressed.vAlign === 'bottom')) {
+                    setVAlign(decompressed.vAlign);
+                }
+                if (decompressed.cursorChar !== undefined) setCursorChar(String(decompressed.cursorChar));
+                if (decompressed.cursorColor !== undefined) setCursorColor(String(decompressed.cursorColor));
+                if (decompressed.cursorBlinkSpeed) setCursorBlinkSpeed(Number(decompressed.cursorBlinkSpeed));
+                if (decompressed.hideCursorOnComplete !== undefined) setHideCursorOnComplete(Boolean(decompressed.hideCursorOnComplete));
+                if (decompressed.pauseDuration) setPauseDuration(Number(decompressed.pauseDuration));
+                if (decompressed.loop !== undefined) setLoop(Boolean(decompressed.loop));
+                if (decompressed.vanishBeforeNextLine !== undefined) setVanishBeforeNextLine(Boolean(decompressed.vanishBeforeNextLine));
+                return;
+            }
+        }
+
+        // 2. Check preset
         if (params.has('preset')) {
             const presetId = params.get('preset');
             const found = PRESETS.find(p => p.id === presetId);
@@ -283,6 +327,7 @@ function SvgGenerator() {
             }
         }
 
+        // 3. Check legacy uncompressed params
         const sharedFont = params.get('font') || DEFAULT_VALUES.font;
         const sharedColor = params.get('color') || DEFAULT_VALUES.color;
         const sharedFontSize = params.has('fontSize') ? parseInt(params.get('fontSize')!, 10) : DEFAULT_VALUES.fontSize;
@@ -316,25 +361,8 @@ function SvgGenerator() {
             } catch {
                 // fall through
             }
-        } else if (params.has('text')) {
-            const textParam = params.get('text')!;
-            const subLines = textParam.split(';').map(t => ({
-                text: t,
-                font: sharedFont,
-                color: sharedColor,
-                fontSize: sharedFontSize,
-                letterSpacing: sharedLetterSpacing,
-                typingSpeed: sharedTypingSpeed,
-                deleteSpeed: sharedDeleteSpeed,
-                fontWeight: sharedFontWeight,
-                lineHeight: sharedLineHeight,
-                animationStyle: sharedAnimationStyle,
-                gradient: sharedGradient,
-            }));
-            setTextLines(subLines);
         }
 
-        // Canvas dimensions & background
         if (params.has('width')) setWidth(parseInt(params.get('width')!, 10));
         if (params.has('height')) setHeight(parseInt(params.get('height')!, 10));
         
@@ -452,75 +480,52 @@ function SvgGenerator() {
         }
     };
 
-    // Compute Query Params
-    const queryParamsString = useMemo(() => {
-        const params = new URLSearchParams();
-
+    // Compute Ultra-Short Compressed Query Param (?c=...)
+    const compressedParam = useMemo(() => {
         if (textLines.length === 0) return '';
 
-        const firstLine = textLines[0];
-        const allSame = (field: keyof TextLine) => textLines.every(line => line[field] === firstLine[field]);
+        const minimalConfig: Record<string, unknown> = {
+            lines: textLines.map(line => {
+                const item: Record<string, unknown> = { text: line.text };
+                if (line.font !== DEFAULT_VALUES.font) item.font = line.font;
+                if (line.color !== DEFAULT_VALUES.color) item.color = line.color;
+                if (line.fontSize !== DEFAULT_VALUES.fontSize) item.fontSize = line.fontSize;
+                if (line.letterSpacing !== DEFAULT_VALUES.letterSpacing) item.letterSpacing = line.letterSpacing;
+                if (line.typingSpeed !== DEFAULT_VALUES.typingSpeed) item.typingSpeed = line.typingSpeed;
+                if (line.deleteSpeed !== DEFAULT_VALUES.deleteSpeed) item.deleteSpeed = line.deleteSpeed;
+                if (line.fontWeight !== DEFAULT_VALUES.fontWeight) item.fontWeight = line.fontWeight;
+                if (line.lineHeight !== DEFAULT_VALUES.lineHeight) item.lineHeight = line.lineHeight;
+                if (line.animationStyle !== DEFAULT_VALUES.animationStyle) item.animationStyle = line.animationStyle;
+                if (line.gradient !== DEFAULT_VALUES.gradient) item.gradient = line.gradient;
+                return item;
+            }),
+        };
 
-        // Lines payload
-        const linesData = textLines.map(line => {
-            const minimal: Record<string, unknown> = { text: line.text };
-            if (!allSame('font') && line.font !== DEFAULT_VALUES.font) minimal.font = line.font;
-            if (!allSame('color') && line.color !== DEFAULT_VALUES.color) minimal.color = line.color;
-            if (!allSame('fontSize') && line.fontSize !== DEFAULT_VALUES.fontSize) minimal.fontSize = line.fontSize;
-            if (!allSame('letterSpacing') && line.letterSpacing !== DEFAULT_VALUES.letterSpacing) minimal.letterSpacing = line.letterSpacing;
-            if (!allSame('typingSpeed') && line.typingSpeed !== DEFAULT_VALUES.typingSpeed) minimal.typingSpeed = line.typingSpeed;
-            if (!allSame('deleteSpeed') && line.deleteSpeed !== DEFAULT_VALUES.deleteSpeed) minimal.deleteSpeed = line.deleteSpeed;
-            if (!allSame('fontWeight') && line.fontWeight !== DEFAULT_VALUES.fontWeight) minimal.fontWeight = line.fontWeight;
-            if (!allSame('lineHeight') && line.lineHeight !== DEFAULT_VALUES.lineHeight) minimal.lineHeight = line.lineHeight;
-            if (!allSame('animationStyle') && line.animationStyle !== DEFAULT_VALUES.animationStyle) minimal.animationStyle = line.animationStyle;
-            if (!allSame('gradient') && line.gradient !== DEFAULT_VALUES.gradient) minimal.gradient = line.gradient;
-            return minimal;
-        });
+        if (width !== DEFAULT_VALUES.width) minimalConfig.width = width;
+        if (height !== DEFAULT_VALUES.height) minimalConfig.height = height;
 
-        params.append('lines', JSON.stringify(linesData));
-
-        // Shared line attributes
-        if (allSame('font') && firstLine.font !== DEFAULT_VALUES.font) params.append('font', firstLine.font);
-        if (allSame('color') && firstLine.color !== DEFAULT_VALUES.color) params.append('color', firstLine.color);
-        if (allSame('fontSize') && firstLine.fontSize !== DEFAULT_VALUES.fontSize) params.append('fontSize', firstLine.fontSize.toString());
-        if (allSame('letterSpacing') && firstLine.letterSpacing !== DEFAULT_VALUES.letterSpacing) params.append('letterSpacing', firstLine.letterSpacing);
-        if (allSame('typingSpeed') && firstLine.typingSpeed !== DEFAULT_VALUES.typingSpeed) params.append('typingSpeed', firstLine.typingSpeed.toString());
-        if (allSame('deleteSpeed') && firstLine.deleteSpeed !== DEFAULT_VALUES.deleteSpeed) params.append('deleteSpeed', firstLine.deleteSpeed.toString());
-        if (allSame('fontWeight') && firstLine.fontWeight !== DEFAULT_VALUES.fontWeight) params.append('fontWeight', firstLine.fontWeight);
-        if (allSame('lineHeight') && firstLine.lineHeight !== DEFAULT_VALUES.lineHeight) params.append('lineHeight', firstLine.lineHeight.toString());
-        if (allSame('animationStyle') && firstLine.animationStyle !== DEFAULT_VALUES.animationStyle) params.append('animationStyle', firstLine.animationStyle);
-        if (allSame('gradient') && firstLine.gradient !== DEFAULT_VALUES.gradient) params.append('gradient', firstLine.gradient);
-
-        // Canvas & Styling Params
-        if (width !== DEFAULT_VALUES.width) params.append('width', width.toString());
-        if (height !== DEFAULT_VALUES.height) params.append('height', height.toString());
-
-        if (backgroundType === 'solid') {
-            params.append('backgroundType', 'solid');
-            params.append('backgroundColor', backgroundColor);
-        } else if (backgroundType === 'gradient' && backgroundGradient) {
-            params.append('backgroundType', 'gradient');
-            params.append('backgroundGradient', backgroundGradient);
-            if (backgroundGradientAngle !== 90) {
-                params.append('backgroundGradientAngle', backgroundGradientAngle.toString());
+        if (backgroundType !== 'transparent') {
+            minimalConfig.backgroundType = backgroundType;
+            if (backgroundType === 'solid') minimalConfig.backgroundColor = backgroundColor;
+            if (backgroundType === 'gradient') {
+                minimalConfig.backgroundGradient = backgroundGradient;
+                if (backgroundGradientAngle !== 90) minimalConfig.backgroundGradientAngle = backgroundGradientAngle;
             }
-        } else if (backgroundType === 'transparent') {
-            params.append('backgroundType', 'transparent');
         }
 
-        if (hAlign !== DEFAULT_VALUES.hAlign) params.append('hAlign', hAlign);
-        if (vAlign !== DEFAULT_VALUES.vAlign) params.append('vAlign', vAlign);
+        if (hAlign !== DEFAULT_VALUES.hAlign) minimalConfig.hAlign = hAlign;
+        if (vAlign !== DEFAULT_VALUES.vAlign) minimalConfig.vAlign = vAlign;
 
-        if (cursorChar !== DEFAULT_VALUES.cursorChar) params.append('cursorChar', cursorChar);
-        if (cursorColor) params.append('cursorColor', cursorColor);
-        if (cursorBlinkSpeed !== DEFAULT_VALUES.cursorBlinkSpeed) params.append('cursorBlinkSpeed', cursorBlinkSpeed.toString());
-        if (hideCursorOnComplete) params.append('hideCursorOnComplete', 'true');
+        if (cursorChar !== DEFAULT_VALUES.cursorChar) minimalConfig.cursorChar = cursorChar;
+        if (cursorColor && cursorColor !== DEFAULT_VALUES.cursorColor) minimalConfig.cursorColor = cursorColor;
+        if (cursorBlinkSpeed !== DEFAULT_VALUES.cursorBlinkSpeed) minimalConfig.cursorBlinkSpeed = cursorBlinkSpeed;
+        if (hideCursorOnComplete) minimalConfig.hideCursorOnComplete = true;
 
-        if (pauseDuration !== DEFAULT_VALUES.pauseDuration) params.append('pauseDuration', pauseDuration.toString());
-        if (!loop) params.append('loop', 'false');
-        if (!vanishBeforeNextLine) params.append('vanishBeforeNextLine', 'false');
+        if (pauseDuration !== DEFAULT_VALUES.pauseDuration) minimalConfig.pauseDuration = pauseDuration;
+        if (!loop) minimalConfig.loop = false;
+        if (!vanishBeforeNextLine) minimalConfig.vanishBeforeNextLine = false;
 
-        return params.toString();
+        return compressConfig(minimalConfig);
     }, [
         textLines, width, height, backgroundType, backgroundColor,
         backgroundGradient, backgroundGradientAngle, hAlign, vAlign,
@@ -528,21 +533,21 @@ function SvgGenerator() {
         pauseDuration, loop, vanishBeforeNextLine
     ]);
 
-    // Live URL
+    // Live Clean URLs
     const svgUrl = useMemo(() => {
-        return `/api/svg?${queryParamsString}`;
-    }, [queryParamsString]);
+        return `/api/svg?c=${compressedParam}`;
+    }, [compressedParam]);
 
     const absoluteSvgUrl = useMemo(() => {
         if (typeof window === 'undefined') return svgUrl;
         return `${window.location.origin}${svgUrl}`;
     }, [svgUrl]);
 
-    // Clean Share URL that restores the exact studio state
+    // Clean Studio Share URL
     const studioShareUrl = useMemo(() => {
         if (typeof window === 'undefined') return svgUrl;
-        return `${window.location.origin}/?${queryParamsString}`;
-    }, [queryParamsString, svgUrl]);
+        return `${window.location.origin}/?c=${compressedParam}`;
+    }, [compressedParam, svgUrl]);
 
     // Copy to clipboard helper
     const handleCopy = (text: string, key: string, label: string) => {
@@ -594,16 +599,6 @@ function SvgGenerator() {
             case 'dark':
             default:
                 return 'bg-[#0d1117] text-[#c9d1d9] border-[#30363d]';
-        }
-    };
-
-    // Download high-DPI PNG snapshot
-    const handleDownloadPng = async () => {
-        try {
-            await downloadPngFromSvg(svgUrl, width, height, 'textfx-banner.png');
-            showToast('Downloaded High-Res PNG (2x)', 'sparkles');
-        } catch {
-            showToast('Failed to generate PNG snapshot', 'info');
         }
     };
 
@@ -697,10 +692,10 @@ function SvgGenerator() {
             isDarkMode ? 'bg-[#09090b] text-zinc-100' : 'bg-zinc-50 text-zinc-900'
         }`}>
             {/* TOP NAVIGATION BAR */}
-            <header className={`border-b sticky top-0 z-30 backdrop-blur-md transition-colors duration-200 ${
+            <header className={`border-b sticky top-0 z-30 backdrop-blur-md transition-colors duration-200 h-14 ${
                 isDarkMode ? 'bg-zinc-950/80 border-zinc-800' : 'bg-white/80 border-zinc-200'
             }`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
                     
                     {/* Brand Logo & Tag */}
                     <div className="flex items-center gap-3">
@@ -791,11 +786,11 @@ function SvgGenerator() {
                 </div>
             </header>
 
-            {/* MAIN APP CONTAINER */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-12">
+            {/* MAIN APP CONTAINER: Independent Scrolling Split Panes on Desktop */}
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:h-[calc(100vh-3.5rem)] lg:overflow-hidden flex flex-col pb-24 lg:pb-4">
 
                 {/* INSPIRATION PRESET THEMES CAROUSEL */}
-                <div className="mb-6 space-y-2">
+                <div className="shrink-0 mb-4 space-y-2">
                     <div className="flex items-center justify-between">
                         <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                             Curated Theme Presets
@@ -805,7 +800,7 @@ function SvgGenerator() {
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                         {PRESETS.map((preset) => {
                             const isSelected = activePresetId === preset.id;
                             return (
@@ -833,11 +828,11 @@ function SvgGenerator() {
                     </div>
                 </div>
 
-                {/* 2-COLUMN STUDIO WORKSPACE */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* 2-COLUMN SPLIT PANES (Independent Scroll on Desktop) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1 min-h-0">
                     
-                    {/* LEFT PANE (5 cols): Accordion Settings */}
-                    <div className="lg:col-span-5 space-y-3">
+                    {/* LEFT PANE (5 cols): Independently Scrollable Settings */}
+                    <div className="lg:col-span-5 lg:h-full lg:overflow-y-auto pr-1 space-y-3 pb-6">
                         
                         {/* 1. TEXT CONTENT & MULTI-LINE */}
                         <AccordionSection
@@ -900,7 +895,7 @@ function SvgGenerator() {
                                             />
                                         </div>
 
-                                        {/* Per-Line Animation Style & Gradient (Rich Custom Selects) */}
+                                        {/* Per-Line Animation Style & Gradient */}
                                         <div className="grid grid-cols-2 gap-3">
                                             <CustomSelect
                                                 label="Animation Style"
@@ -929,7 +924,7 @@ function SvgGenerator() {
                                             />
                                         )}
 
-                                        {/* Number Input Steppers for line font size & speeds */}
+                                        {/* Number Input Steppers with Quick Presets (NO SLIDERS) */}
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                                             <NumberInputStepper
                                                 label="Font Size"
@@ -939,6 +934,7 @@ function SvgGenerator() {
                                                 max={96}
                                                 step={1}
                                                 unit="px"
+                                                presets={[16, 20, 24, 28, 36, 48]}
                                                 isDarkMode={isDarkMode}
                                             />
                                             <NumberInputStepper
@@ -949,6 +945,7 @@ function SvgGenerator() {
                                                 max={300}
                                                 step={5}
                                                 unit="ms"
+                                                presets={[30, 60, 90, 120]}
                                                 isDarkMode={isDarkMode}
                                             />
                                             <NumberInputStepper
@@ -959,6 +956,7 @@ function SvgGenerator() {
                                                 max={200}
                                                 step={5}
                                                 unit="ms"
+                                                presets={[20, 40, 60, 80]}
                                                 isDarkMode={isDarkMode}
                                             />
                                         </div>
@@ -1075,6 +1073,7 @@ function SvgGenerator() {
                                         max={10}
                                         step={0.5}
                                         unit="s"
+                                        presets={[1, 1.5, 2, 3, 5]}
                                         isDarkMode={isDarkMode}
                                     />
                                 </div>
@@ -1098,6 +1097,7 @@ function SvgGenerator() {
                                             max={1500}
                                             step={50}
                                             unit="ms"
+                                            presets={[300, 500, 600, 800]}
                                             isDarkMode={isDarkMode}
                                         />
                                     </>
@@ -1190,6 +1190,7 @@ function SvgGenerator() {
                                             max={360}
                                             step={15}
                                             unit="°"
+                                            presets={[0, 45, 90, 135, 180, 270]}
                                             isDarkMode={isDarkMode}
                                         />
                                     </div>
@@ -1216,6 +1217,7 @@ function SvgGenerator() {
                                         max={1600}
                                         step={20}
                                         unit="px"
+                                        presets={[400, 500, 600, 800, 1000]}
                                         isDarkMode={isDarkMode}
                                     />
                                     <NumberInputStepper
@@ -1226,6 +1228,7 @@ function SvgGenerator() {
                                         max={600}
                                         step={10}
                                         unit="px"
+                                        presets={[60, 80, 100, 120, 150]}
                                         isDarkMode={isDarkMode}
                                     />
                                 </div>
@@ -1284,8 +1287,8 @@ function SvgGenerator() {
 
                     </div>
 
-                    {/* RIGHT PANE (7 cols): Live Preview Pane & Export Embed Section */}
-                    <div className="lg:col-span-7 space-y-4">
+                    {/* RIGHT PANE (7 cols): Independently Scrollable Live Preview & Exports */}
+                    <div className="lg:col-span-7 lg:h-full lg:overflow-y-auto pl-1 space-y-4 pb-6">
                         
                         {/* Live Preview Card */}
                         <div className={`rounded-xl border shadow-xl overflow-hidden backdrop-blur-md transition-all ${
@@ -1460,7 +1463,7 @@ function SvgGenerator() {
                                         }`}
                                     >
                                         <Download className="w-3.5 h-3.5" />
-                                        <span>Download</span>
+                                        <span>Download SVG</span>
                                     </button>
                                 </div>
                             </div>
@@ -1481,7 +1484,7 @@ function SvgGenerator() {
                                     </h3>
                                 </div>
                                 <span className="text-[11px] text-zinc-400 font-mono">
-                                    Ready-to-use embed tags
+                                    Ultra-short embed tags
                                 </span>
                             </div>
 
@@ -1576,7 +1579,7 @@ function SvgGenerator() {
                                     <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
                                         Downloads & Configuration Backups
                                     </span>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
                                         <button
                                             type="button"
                                             onClick={handleDownload}
@@ -1590,24 +1593,13 @@ function SvgGenerator() {
 
                                         <button
                                             type="button"
-                                            onClick={handleDownloadPng}
-                                            className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
-                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100 shadow-sm'
-                                            }`}
-                                        >
-                                            <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
-                                            <span>Download PNG (2x)</span>
-                                        </button>
-
-                                        <button
-                                            type="button"
                                             onClick={handleExportJson}
                                             className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
                                                 isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
                                             }`}
                                         >
                                             <FileJson className="w-3.5 h-3.5 text-amber-400" />
-                                            <span>Export Config JSON</span>
+                                            <span>Export JSON</span>
                                         </button>
 
                                         <button
@@ -1618,7 +1610,7 @@ function SvgGenerator() {
                                             }`}
                                         >
                                             <Upload className="w-3.5 h-3.5 text-purple-400" />
-                                            <span>Import Config JSON</span>
+                                            <span>Import JSON</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1756,7 +1748,6 @@ function SvgGenerator() {
                 onCopyHtml={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" width="${width}" height="${height}" />`, 'cmd-html', 'HTML Tag')}
                 onCopyUrl={() => handleCopy(absoluteSvgUrl, 'cmd-url', 'SVG URL')}
                 onDownloadSvg={handleDownload}
-                onDownloadPng={handleDownloadPng}
                 onExportJson={handleExportJson}
                 onImportJson={() => fileInputRef.current?.click()}
                 onOpenShare={() => setIsShareModalOpen(true)}

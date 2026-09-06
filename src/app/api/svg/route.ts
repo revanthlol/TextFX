@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateParams } from "@/lib/utils";
 import { parseGradient, getGradientCoordinates } from "@/lib/gradients";
+import { decompressConfig } from "@/lib/urlCompression";
 import * as opentype from "opentype.js";
 
 interface TextLine {
@@ -253,12 +254,29 @@ async function getGoogleFontsData(textLines: TextLine[]): Promise<{
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const p = validateParams(searchParams);
+
+    let activeParams = searchParams;
+    if (searchParams.has("c")) {
+      const decompressed = decompressConfig<Record<string, unknown>>(searchParams.get("c")!);
+      if (decompressed && typeof decompressed === "object") {
+        const merged = new URLSearchParams(searchParams);
+        for (const [k, v] of Object.entries(decompressed)) {
+          if (k === "lines") {
+            merged.set("lines", JSON.stringify(v));
+          } else if (v !== undefined && v !== null) {
+            merged.set(k, String(v));
+          }
+        }
+        activeParams = merged;
+      }
+    }
+
+    const p = validateParams(activeParams);
 
     const deletionBehavior = p.deletionBehavior as DeletionBehavior;
     const pauseDuration = p.pause / 1000;
 
-    const linesParam = searchParams.get("lines");
+    const linesParam = activeParams.get("lines");
     let textLines: TextLine[] = [];
 
     try {

@@ -219,18 +219,18 @@ export function FontCombobox({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-sm font-medium transition-all duration-150 outline-none ${
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-all duration-150 outline-none ${
           isDarkMode
-            ? 'bg-gray-800/90 border-gray-700 text-gray-100 hover:border-gray-500 hover:bg-gray-800 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/30'
-            : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400 hover:bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30'
-        } ${isOpen ? (isDarkMode ? 'border-yellow-500 ring-1 ring-yellow-500/30' : 'border-blue-500 ring-1 ring-blue-500/30') : ''}`}
+            ? 'bg-zinc-950 border-zinc-800 text-zinc-100 hover:border-zinc-700 hover:bg-zinc-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30'
+            : 'bg-white border-zinc-300 text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 shadow-sm'
+        } ${isOpen ? (isDarkMode ? 'border-emerald-500 ring-1 ring-emerald-500/30' : 'border-blue-500 ring-1 ring-blue-500/30') : ''}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-2.5 truncate">
-          <Type className={`w-4 h-4 shrink-0 ${isDarkMode ? 'text-yellow-400' : 'text-blue-500'}`} />
+        <div className="flex items-center gap-2 truncate">
+          <Type className={`w-3.5 h-3.5 shrink-0 ${isDarkMode ? 'text-emerald-400' : 'text-blue-500'}`} />
           <span 
-            className="truncate text-base"
+            className="truncate text-xs font-medium"
             style={{ fontFamily: value ? `'${value}', sans-serif` : 'inherit' }}
           >
             {value || placeholder}
@@ -238,9 +238,9 @@ export function FontCombobox({
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {favorites.includes(value) && (
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
           )}
-          <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`} />
         </div>
       </button>
 
@@ -364,29 +364,29 @@ export function FontCombobox({
                     }}
                     role="option"
                     aria-selected={isSelected}
-                    className={`group px-3 py-2 cursor-pointer flex items-center justify-between transition-colors ${
+                    className={`group px-2.5 py-1.5 cursor-pointer flex items-center justify-between transition-colors ${
                       isSelected
-                        ? (isDarkMode ? 'bg-yellow-500/15 text-yellow-300' : 'bg-blue-50 text-blue-900')
+                        ? (isDarkMode ? 'bg-emerald-500/15 text-emerald-300 font-semibold' : 'bg-blue-50 text-blue-900 font-semibold')
                         : isFocused
-                          ? (isDarkMode ? 'bg-gray-800/80 text-gray-100' : 'bg-gray-100 text-gray-900')
-                          : (isDarkMode ? 'text-gray-200 hover:bg-gray-800/50' : 'text-gray-800 hover:bg-gray-50')
+                          ? (isDarkMode ? 'bg-zinc-800/80 text-zinc-100' : 'bg-zinc-100 text-zinc-900')
+                          : (isDarkMode ? 'text-zinc-200 hover:bg-zinc-800/50' : 'text-zinc-800 hover:bg-zinc-50')
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
                       {/* Font name styled in its own typography */}
                       <span 
-                        className="text-base sm:text-lg tracking-wide truncate font-medium"
+                        className="text-sm truncate font-medium"
                         style={{ fontFamily: `'${font.family}', sans-serif` }}
                       >
                         {font.family}
                       </span>
                       
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize shrink-0 font-normal ${
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded capitalize shrink-0 font-normal ${
                         font.category === 'monospace'
                           ? (isDarkMode ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
                           : font.category === 'handwriting'
                             ? (isDarkMode ? 'bg-pink-950/60 text-pink-300 border border-pink-800/40' : 'bg-pink-50 text-pink-700 border border-pink-200')
-                            : (isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500')
+                            : (isDarkMode ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-100 text-zinc-500')
                       }`}>
                         {font.category}
                       </span>

@@ -33,21 +33,16 @@ const loadedPreviewFonts = new Set<string>();
 export function loadFontPreview(fontFamily: string) {
   if (typeof window === 'undefined' || !fontFamily) return;
 
-  // On mobile devices / narrow screens, skip dynamic font loading to keep it super lightweight
-  if (window.innerWidth < 768) return;
-
   const cleanFamily = fontFamily.trim();
   const cacheKey = cleanFamily.toLowerCase();
   if (loadedPreviewFonts.has(cacheKey)) return;
 
   try {
-    const linkId = `font-preview-${encodeURIComponent(cleanFamily)}`;
+    const linkId = `font-preview-${cleanFamily.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
     let link = document.getElementById(linkId) as HTMLLinkElement | null;
     
-    // Only request glyphs needed to render the font name itself + fallback chars
-    const uniqueChars = Array.from(new Set(`${cleanFamily}AaBbCc0123456789`)).join('');
     const familyParam = cleanFamily.replace(/ /g, '+');
-    const fontUrl = `https://fonts.googleapis.com/css2?family=${familyParam}&text=${encodeURIComponent(uniqueChars)}&display=swap`;
+    const fontUrl = `https://fonts.googleapis.com/css2?family=${familyParam}&display=swap`;
 
     if (!link) {
       link = document.createElement('link');
