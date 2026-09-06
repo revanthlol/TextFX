@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Minus, Plus, Check } from 'lucide-react';
 
 interface NumberInputStepperProps {
     label: string;
@@ -31,23 +31,34 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
     presets,
 }) => {
     const [inputValue, setInputValue] = useState<string>(value.toString());
-    const [isFocused, setIsFocused] = useState<boolean>(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Sync input string with incoming value
     useEffect(() => {
         setInputValue(value.toString());
     }, [value]);
 
+    // Handle click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const clamp = (num: number) => {
         const clamped = Math.max(min, Math.min(max, num));
-        // Handle decimal precision based on step
         const decimals = step.toString().split('.')[1]?.length || 0;
         return parseFloat(clamped.toFixed(decimals));
     };
 
-    const handleBlurOrCommit = () => {
-        setIsFocused(false);
-        const parsed = parseFloat(inputValue);
+    const commitParsedValue = (str: string) => {
+        const parsed = parseFloat(str);
         if (isNaN(parsed)) {
             setInputValue(value.toString());
         } else {
@@ -57,10 +68,18 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
         }
     };
 
+    const handleBlur = () => {
+        commitParsedValue(inputValue);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            handleBlurOrCommit();
-            (e.target as HTMLInputElement).blur();
+            commitParsedValue(inputValue);
+            setIsDropdownOpen(false);
+            inputRef.current?.blur();
+        } else if (e.key === 'Escape') {
+            setIsDropdownOpen(false);
+            inputRef.current?.blur();
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             increment();
@@ -82,8 +101,14 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
         setInputValue(next.toString());
     };
 
+    const handleSelectPreset = (preset: number) => {
+        onChange(preset);
+        setInputValue(preset.toString());
+        setIsDropdownOpen(false);
+    };
+
     return (
-        <div className={`space-y-1.5 ${className}`}>
+        <div ref={containerRef} className={`relative space-y-1.5 ${className}`}>
             <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                     <label
@@ -100,12 +125,12 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
                     )}
                 </div>
 
-                {/* Compact Stepper & Editable Field (NO SLIDERS) */}
+                {/* Compact Stepper & Editable Field */}
                 <div
                     className={`flex items-center rounded-lg border overflow-hidden transition-all shrink-0 ${
                         isDarkMode
                             ? 'bg-zinc-950 border-zinc-800 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30'
-                            : 'bg-white border-zinc-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/30 shadow-sm'
+                            : 'bg-white border-zinc-300 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30 shadow-sm'
                     }`}
                 >
                     <button
@@ -124,14 +149,24 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
 
                     <div className="flex items-center px-1">
                         <input
+                            ref={inputRef}
                             type="text"
                             inputMode="decimal"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            onFocus={() => setIsFocused(true)}
-                            onBlur={handleBlurOrCommit}
+                            onClick={() => {
+                                if (presets && presets.length > 0) {
+                                    setIsDropdownOpen(true);
+                                }
+                            }}
+                            onFocus={() => {
+                                if (presets && presets.length > 0) {
+                                    setIsDropdownOpen(true);
+                                }
+                            }}
+                            onBlur={handleBlur}
                             onKeyDown={handleKeyDown}
-                            className={`w-11 text-center text-xs font-mono font-semibold bg-transparent outline-none py-1 ${
+                            className={`w-11 text-center text-xs font-mono font-semibold bg-transparent outline-none py-1 cursor-text ${
                                 isDarkMode ? 'text-zinc-100' : 'text-zinc-900'
                             }`}
                         />
@@ -162,36 +197,47 @@ export const NumberInputStepper: React.FC<NumberInputStepperProps> = ({
                 </div>
             </div>
 
-            {/* Quick Clickable Presets Row (Shows presets cleanly) */}
-            {presets && presets.length > 0 && (
-                <div className={`flex items-center gap-1 overflow-x-auto no-scrollbar transition-opacity duration-150 ${
-                    isFocused ? 'opacity-100' : 'opacity-80 hover:opacity-100'
-                }`}>
-                    {presets.map((preset) => {
-                        const isCurrent = value === preset;
-                        return (
-                            <button
-                                key={preset}
-                                type="button"
-                                onMouseDown={(e) => {
-                                    e.preventDefault(); // prevent losing focus
-                                    onChange(preset);
-                                    setInputValue(preset.toString());
-                                }}
-                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-all shrink-0 ${
-                                    isCurrent
-                                        ? isDarkMode
-                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold'
-                                            : 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold'
-                                        : isDarkMode
-                                        ? 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-                                        : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
-                                }`}
-                            >
-                                {preset}{unit ? `${unit}` : ''}
-                            </button>
-                        );
-                    })}
+            {/* Floating Presets Dropdown */}
+            {isDropdownOpen && presets && presets.length > 0 && (
+                <div
+                    className={`absolute right-0 top-full mt-1 z-30 min-w-[120px] rounded-lg border shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100 ${
+                        isDarkMode
+                            ? 'bg-zinc-950/95 border-zinc-800 text-zinc-200 backdrop-blur-md'
+                            : 'bg-white/95 border-zinc-200 text-zinc-800 backdrop-blur-md'
+                    }`}
+                >
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-800/50 mb-0.5">
+                        Presets
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-0.5">
+                        {presets.map((preset) => {
+                            const isSelected = value === preset;
+                            return (
+                                <button
+                                    key={preset}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault(); // prevent input blur before commit
+                                        handleSelectPreset(preset);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono transition-colors ${
+                                        isSelected
+                                            ? isDarkMode
+                                                ? 'bg-emerald-500/15 text-emerald-400 font-semibold'
+                                                : 'bg-emerald-50 text-emerald-700 font-semibold'
+                                            : isDarkMode
+                                            ? 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                                            : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
+                                    }`}
+                                >
+                                    <span>
+                                        {preset}{unit ? ` ${unit}` : ''}
+                                    </span>
+                                    {isSelected && <Check className="w-3 h-3 text-emerald-500" />}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
         </div>

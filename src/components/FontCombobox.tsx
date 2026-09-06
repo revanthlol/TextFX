@@ -4,15 +4,9 @@ import React, { useState, useEffect, useRef, useMemo, useDeferredValue } from 'r
 import { 
   Search, 
   Check, 
-  Star, 
-  Clock, 
   ChevronDown, 
   X, 
-  Type, 
-  Sparkles, 
-  Code2, 
-  PenTool, 
-  Compass
+  Star
 } from 'lucide-react';
 import { 
   ALL_FONTS, 
@@ -33,14 +27,15 @@ interface FontComboboxProps {
   placeholder?: string;
 }
 
-const CATEGORIES: { id: FontCategory; label: string; icon: React.ReactNode }[] = [
-  { id: 'all', label: 'All', icon: <Compass className="w-3.5 h-3.5" /> },
-  { id: 'popular', label: 'Popular', icon: <Sparkles className="w-3.5 h-3.5 text-amber-500" /> },
-  { id: 'monospace', label: 'Monospace', icon: <Code2 className="w-3.5 h-3.5 text-emerald-500" /> },
-  { id: 'handwriting', label: 'Handwriting', icon: <PenTool className="w-3.5 h-3.5 text-pink-500" /> },
-  { id: 'sans-serif', label: 'Sans Serif', icon: <Type className="w-3.5 h-3.5 text-blue-500" /> },
-  { id: 'serif', label: 'Serif', icon: <Type className="w-3.5 h-3.5 text-purple-500" /> },
-  { id: 'display', label: 'Display', icon: <Sparkles className="w-3.5 h-3.5 text-orange-500" /> }
+const CATEGORIES: { id: FontCategory | 'favorites' | 'recent'; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'popular', label: 'Popular' },
+  { id: 'monospace', label: 'Mono' },
+  { id: 'sans-serif', label: 'Sans' },
+  { id: 'serif', label: 'Serif' },
+  { id: 'display', label: 'Display' },
+  { id: 'handwriting', label: 'Script' },
+  { id: 'favorites', label: 'Starred' }
 ];
 
 const INITIAL_VISIBLE_COUNT = 40;
@@ -49,7 +44,7 @@ const BATCH_SIZE = 30;
 export function FontCombobox({
   value,
   onChange,
-  isDarkMode = false,
+  isDarkMode = true,
   className = '',
   placeholder = 'Select font...'
 }: FontComboboxProps) {
@@ -135,14 +130,14 @@ export function FontCombobox({
     return filteredFonts.slice(0, visibleCount);
   }, [filteredFonts, visibleCount]);
 
-  // Load preview fonts for visible slice only
+  // Load preview fonts for visible slice
   useEffect(() => {
     if (!isOpen) return;
-    const slice = visibleFonts.slice(0, 25);
+    const slice = visibleFonts.slice(0, 30);
     slice.forEach((f) => loadFontPreview(f.family));
   }, [isOpen, visibleFonts]);
 
-  // Reset pagination & active index on filter changes
+  // Reset pagination on search
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE_COUNT);
     setActiveIndex(0);
@@ -151,10 +146,10 @@ export function FontCombobox({
     }
   }, [deferredSearch, selectedCategory]);
 
-  // Infinite scroll handler
+  // Infinite scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
-    if (scrollTop + clientHeight >= scrollHeight - 150) {
+    if (scrollTop + clientHeight >= scrollHeight - 120) {
       if (visibleCount < filteredFonts.length) {
         setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, filteredFonts.length));
       }
@@ -176,22 +171,12 @@ export function FontCombobox({
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        setIsOpen(true);
-      }
-      return;
-    }
-
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex((prev) => (prev < visibleFonts.length - 1 ? prev + 1 : prev));
-      scrollActiveIntoView(activeIndex + 1);
+      setActiveIndex((prev) => Math.min(prev + 1, visibleFonts.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((prev) => (prev > 0 ? prev - 1 : 0));
-      scrollActiveIntoView(activeIndex - 1);
+      setActiveIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (visibleFonts[activeIndex]) {
@@ -203,160 +188,113 @@ export function FontCombobox({
     }
   };
 
-  const scrollActiveIntoView = (index: number) => {
-    if (!listRef.current) return;
-    const items = listRef.current.querySelectorAll('[data-font-item]');
-    const target = items[index] as HTMLElement | undefined;
-    if (target) {
-      target.scrollIntoView({ block: 'nearest' });
-    }
-  };
-
   return (
-    <div ref={containerRef} className={`relative w-full ${className}`}>
+    <div ref={containerRef} className={`relative ${className}`}>
       {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        onKeyDown={handleKeyDown}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-all duration-150 outline-none ${
-          isDarkMode
-            ? 'bg-zinc-950 border-zinc-800 text-zinc-100 hover:border-zinc-700 hover:bg-zinc-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30'
-            : 'bg-white border-zinc-300 text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 shadow-sm'
-        } ${isOpen ? (isDarkMode ? 'border-emerald-500 ring-1 ring-emerald-500/30' : 'border-blue-500 ring-1 ring-blue-500/30') : ''}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-xs transition-all ${
+          isDarkMode
+            ? 'bg-zinc-950 border-zinc-800 text-zinc-100 hover:border-zinc-700'
+            : 'bg-white border-zinc-300 text-zinc-900 hover:border-zinc-400 shadow-sm'
+        } ${isOpen ? (isDarkMode ? 'border-emerald-500 ring-1 ring-emerald-500/20' : 'border-emerald-500 ring-1 ring-emerald-500/20') : ''}`}
       >
-        <div className="flex items-center gap-2 truncate">
-          <Type className={`w-3.5 h-3.5 shrink-0 ${isDarkMode ? 'text-emerald-400' : 'text-blue-500'}`} />
-          <span 
-            className="truncate text-xs font-medium"
-            style={{ fontFamily: value ? `'${value}', sans-serif` : 'inherit' }}
-          >
-            {value || placeholder}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0 ml-2">
-          {favorites.includes(value) && (
-            <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
-          )}
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`} />
-        </div>
+        <span 
+          className="truncate font-medium text-xs"
+          style={{ fontFamily: value ? `'${value}', sans-serif` : 'inherit' }}
+        >
+          {value || placeholder}
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 shrink-0 ml-1.5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Popover Dropdown */}
+      {/* Minimalist Dropdown Menu */}
       {isOpen && (
-        <div 
-          className={`absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl shadow-2xl border overflow-hidden transition-all duration-100 ${
+        <div
+          className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-2xl overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-100 ${
             isDarkMode 
-              ? 'bg-gray-900 border-gray-700 text-gray-100 shadow-black/80' 
-              : 'bg-white border-gray-200 text-gray-900 shadow-xl'
+              ? 'bg-zinc-950/95 border-zinc-800 text-zinc-100' 
+              : 'bg-white/95 border-zinc-200 text-zinc-900 shadow-xl'
           }`}
-          style={{ width: '100%', minWidth: '320px', maxWidth: '440px' }}
+          style={{ width: '100%', minWidth: '280px', maxWidth: '380px' }}
         >
           {/* Search Header */}
-          <div className={`p-2.5 border-b ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-100 bg-gray-50'}`}>
-            <div className={`relative flex items-center rounded-lg border transition-colors ${
+          <div className={`p-2 border-b ${isDarkMode ? 'border-zinc-800/80 bg-zinc-900/40' : 'border-zinc-200 bg-zinc-50'}`}>
+            <div className={`flex items-center px-2 py-1 rounded-md border text-xs transition-colors ${
               isDarkMode 
-                ? 'bg-gray-800 border-gray-700 focus-within:border-yellow-500' 
-                : 'bg-white border-gray-300 focus-within:border-blue-500'
+                ? 'bg-zinc-900 border-zinc-800 focus-within:border-emerald-500/50' 
+                : 'bg-white border-zinc-300 focus-within:border-emerald-500'
             }`}>
-              <Search className="w-4 h-4 ml-3 shrink-0 text-gray-400" />
+              <Search className="w-3.5 h-3.5 mr-2 shrink-0 text-zinc-500" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search 1,500+ fonts (Fira, Inter, Roboto)..."
-                className={`w-full px-2.5 py-1.5 text-sm bg-transparent outline-none placeholder:text-gray-400 ${
-                  isDarkMode ? 'text-gray-100' : 'text-gray-900'
-                }`}
+                placeholder="Search fonts..."
+                className="w-full bg-transparent outline-none text-xs placeholder:text-zinc-500"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="p-1 mr-1 text-gray-400 hover:text-gray-200"
+                  className="p-0.5 text-zinc-500 hover:text-zinc-300"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3" />
                 </button>
               )}
             </div>
 
-            {/* Category Chips Bar */}
-            <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 no-scrollbar text-xs">
-              {/* Starred Filter Chip */}
-              <button
-                type="button"
-                onClick={() => setSelectedCategory(selectedCategory === 'favorites' ? 'all' : 'favorites')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${
-                  selectedCategory === 'favorites'
-                    ? (isDarkMode ? 'bg-amber-500 text-black font-semibold' : 'bg-amber-500 text-white font-semibold')
-                    : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
-                }`}
-              >
-                <Star className={`w-3 h-3 ${selectedCategory === 'favorites' ? 'fill-current' : 'text-amber-400'}`} />
-                <span>Starred ({favorites.length})</span>
-              </button>
-
-              {/* Recents Filter Chip */}
-              {recents.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory(selectedCategory === 'recent' ? 'all' : 'recent')}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${
-                    selectedCategory === 'recent'
-                      ? (isDarkMode ? 'bg-blue-500 text-white font-semibold' : 'bg-blue-600 text-white font-semibold')
-                      : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
-                  }`}
-                >
-                  <Clock className="w-3 h-3 text-blue-400" />
-                  <span>Recent</span>
-                </button>
-              )}
-
-              {/* Standard Categories */}
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${
-                    selectedCategory === cat.id
-                      ? (isDarkMode ? 'bg-yellow-500 text-black font-semibold' : 'bg-gray-900 text-white font-semibold')
-                      : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
-                  }`}
-                >
-                  {cat.icon}
-                  <span>{cat.label}</span>
-                </button>
-              ))}
+            {/* Minimal Category Pills */}
+            <div className="flex items-center gap-1 mt-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+              {CATEGORIES.map((cat) => {
+                const isCatActive = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap transition-colors border shrink-0 ${
+                      isCatActive
+                        ? isDarkMode
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 font-semibold'
+                          : 'bg-emerald-50 border-emerald-400 text-emerald-800 font-semibold'
+                        : isDarkMode
+                        ? 'bg-zinc-900/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                        : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Fonts List (Paginated / Windowed for zero lag) */}
+          {/* Fonts List */}
           <div 
             ref={listRef}
             onScroll={handleScroll}
-            className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800/60"
+            className="max-h-64 overflow-y-auto p-1 space-y-0.5"
             role="listbox"
           >
             {filteredFonts.length === 0 ? (
-              <div className="py-8 px-4 text-center">
-                <Type className={`w-6 h-6 mx-auto mb-1.5 opacity-30 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                <p className="text-xs font-medium text-gray-400">No matching fonts found</p>
+              <div className="py-6 px-3 text-center text-xs text-zinc-500">
+                No matching fonts found
               </div>
             ) : (
               visibleFonts.map((font, idx) => {
                 const isSelected = font.family.toLowerCase() === value.toLowerCase();
-                const isFavorite = favorites.includes(font.family);
                 const isFocused = idx === activeIndex;
+                const isFav = favorites.includes(font.family);
 
                 return (
                   <div
                     key={font.family}
-                    data-font-item
                     onClick={() => handleSelect(font.family)}
                     onMouseEnter={() => {
                       setActiveIndex(idx);
@@ -364,59 +302,48 @@ export function FontCombobox({
                     }}
                     role="option"
                     aria-selected={isSelected}
-                    className={`group px-2.5 py-1.5 cursor-pointer flex items-center justify-between transition-colors ${
+                    className={`group px-2 py-1.5 rounded-md cursor-pointer flex items-center justify-between text-xs transition-colors ${
                       isSelected
-                        ? (isDarkMode ? 'bg-emerald-500/15 text-emerald-300 font-semibold' : 'bg-blue-50 text-blue-900 font-semibold')
+                        ? isDarkMode
+                          ? 'bg-emerald-500/15 text-emerald-300 font-medium'
+                          : 'bg-emerald-50 text-emerald-800 font-medium'
                         : isFocused
-                          ? (isDarkMode ? 'bg-zinc-800/80 text-zinc-100' : 'bg-zinc-100 text-zinc-900')
-                          : (isDarkMode ? 'text-zinc-200 hover:bg-zinc-800/50' : 'text-zinc-800 hover:bg-zinc-50')
+                        ? isDarkMode
+                          ? 'bg-zinc-900 text-zinc-100'
+                          : 'bg-zinc-100 text-zinc-900'
+                        : isDarkMode
+                        ? 'text-zinc-300 hover:bg-zinc-900/70 hover:text-zinc-100'
+                        : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0 pr-2">
-                      {/* Font name styled in its own typography */}
                       <span 
-                        className="text-sm truncate font-medium"
+                        className="text-xs truncate"
                         style={{ fontFamily: `'${font.family}', sans-serif` }}
                       >
                         {font.family}
                       </span>
-                      
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded capitalize shrink-0 font-normal ${
-                        font.category === 'monospace'
-                          ? (isDarkMode ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
-                          : font.category === 'handwriting'
-                            ? (isDarkMode ? 'bg-pink-950/60 text-pink-300 border border-pink-800/40' : 'bg-pink-50 text-pink-700 border border-pink-200')
-                            : (isDarkMode ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-100 text-zinc-500')
-                      }`}>
+                      <span className="text-[9px] font-mono text-zinc-500 lowercase opacity-60 shrink-0">
                         {font.category}
                       </span>
-                      
-                      {font.isPopular && (
-                        <span className="text-[10px] text-amber-500 font-medium shrink-0">
-                          ★
-                        </span>
-                      )}
                     </div>
 
-                    {/* Action buttons (Favorite & Selected Checkmark) */}
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
                         onClick={(e) => handleToggleFavorite(e, font.family)}
-                        title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                        className={`p-1.5 rounded-md transition-colors ${
-                          isFavorite 
-                            ? 'text-amber-400 hover:text-amber-300' 
-                            : 'text-gray-400 hover:text-amber-400 opacity-40 group-hover:opacity-100'
+                        className={`p-0.5 rounded transition-opacity ${
+                          isFav 
+                            ? 'text-amber-400 opacity-100' 
+                            : 'text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-amber-400'
                         }`}
+                        title={isFav ? 'Unstar' : 'Star'}
                       >
-                        <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+                        <Star className={`w-3 h-3 ${isFav ? 'fill-current' : ''}`} />
                       </button>
 
                       {isSelected && (
-                        <div className={`p-1 rounded-full ${isDarkMode ? 'bg-yellow-500 text-black' : 'bg-blue-600 text-white'}`}>
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
                       )}
                     </div>
                   </div>
@@ -425,15 +352,12 @@ export function FontCombobox({
             )}
           </div>
 
-          {/* Footer Bar */}
-          <div className={`py-1.5 px-3 text-[11px] flex items-center justify-between border-t ${
-            isDarkMode ? 'border-gray-800 bg-gray-950 text-gray-400' : 'border-gray-100 bg-gray-50 text-gray-500'
+          {/* Minimalist Footer */}
+          <div className={`px-2.5 py-1 text-[10px] font-mono flex items-center justify-between border-t ${
+            isDarkMode ? 'border-zinc-800/80 bg-zinc-900/30 text-zinc-500' : 'border-zinc-200 bg-zinc-50 text-zinc-500'
           }`}>
-            <span>Showing {visibleFonts.length} of {filteredFonts.length} fonts</span>
-            <span className="flex items-center gap-1">
-              <kbd className="px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-[10px] font-mono">↑↓</kbd>
-              <kbd className="ml-0.5 px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-[10px] font-mono">↵</kbd>
-            </span>
+            <span>{visibleFonts.length} / {filteredFonts.length} fonts</span>
+            <span>↑↓ navigate</span>
           </div>
         </div>
       )}

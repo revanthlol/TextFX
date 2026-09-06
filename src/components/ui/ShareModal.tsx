@@ -39,8 +39,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(shareUrl)}&format=svg&color=${isDarkMode ? '00ff66' : '09090b'}&bgcolor=${isDarkMode ? '09090b' : 'ffffff'}`;
 
-    const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out my animated typography banner generated with TextFX! ⚡️')}&url=${encodeURIComponent(shareUrl)}`;
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
@@ -124,25 +122,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
                     {/* Action buttons */}
                     <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                            type="button"
+                            onClick={handleCopy}
+                            className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                isCopied
+                                    ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-400'
+                                    : isDarkMode
+                                    ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white'
+                                    : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                            }`}
+                        >
+                            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{isCopied ? 'Copied Link!' : 'Copy Link'}</span>
+                        </button>
+
                         <a
                             href={shareUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                            className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                isDarkMode 
+                                    ? 'border-zinc-800 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40' 
+                                    : 'border-zinc-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                             }`}
                         >
                             <ExternalLink className="w-3.5 h-3.5" />
                             <span>Open in New Tab</span>
-                        </a>
-
-                        <a
-                            href={xShareUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-3 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-white active:scale-95 transition-all"
-                        >
-                            <span>Share on 𝕏</span>
                         </a>
                     </div>
                 </div>

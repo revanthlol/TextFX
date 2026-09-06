@@ -702,9 +702,6 @@ function SvgGenerator() {
                         <Link href="/" className="flex items-center gap-2 group">
                             <AnimatedLogo />
                         </Link>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono hidden sm:inline-block">
-                            v2.0 SVG Studio
-                        </span>
                     </div>
 
                     {/* Header Quick Controls */}
@@ -742,22 +739,24 @@ function SvgGenerator() {
                         <button
                             type="button"
                             onClick={resetToDefaults}
-                            className={`p-1.5 rounded-md border text-xs transition-colors ${
-                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100'
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 shadow-sm'
                             }`}
                             title="Reset all settings"
                         >
                             <RotateCcw className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Reset</span>
                         </button>
 
                         <Link
                             href="/docs"
-                            className={`p-1.5 rounded-md border text-xs transition-colors ${
-                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100'
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 shadow-sm'
                             }`}
                             title="API & Embed Documentation"
                         >
                             <BookOpen className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Docs</span>
                         </Link>
 
                         <button
@@ -794,9 +793,6 @@ function SvgGenerator() {
                     <div className="flex items-center justify-between">
                         <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                             Curated Theme Presets
-                        </span>
-                        <span className="text-[11px] text-zinc-400 font-mono">
-                            Click to apply instant styling
                         </span>
                     </div>
 
@@ -1375,7 +1371,7 @@ function SvgGenerator() {
                                                 svgUrl={svgUrl}
                                                 width={width}
                                                 height={height}
-                                                isDarkMode={canvasTheme === 'dark' || canvasTheme === 'dimmed'}
+                                                isDarkMode={isDarkMode || canvasTheme === 'dark' || canvasTheme === 'dimmed' || canvasTheme === 'transparent'}
                                             />
                                         </div>
                                     </div>

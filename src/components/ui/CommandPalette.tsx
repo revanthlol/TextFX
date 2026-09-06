@@ -318,6 +318,15 @@ export function CommandPalette({
         setSelectedIndex(0);
     }, [searchQuery]);
 
+    // Automatically scroll selected item into view during keyboard navigation
+    useEffect(() => {
+        if (!listRef.current) return;
+        const activeElement = listRef.current.querySelector(`[data-index="${selectedIndex}"]`) as HTMLElement | null;
+        if (activeElement) {
+            activeElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }, [selectedIndex]);
+
     // Keyboard navigation within modal
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowDown') {
@@ -371,7 +380,7 @@ export function CommandPalette({
                 {/* Results List */}
                 <div 
                     ref={listRef}
-                    className="max-h-[340px] overflow-y-auto p-2 space-y-1 no-scrollbar"
+                    className="max-h-[340px] overflow-y-auto p-2 space-y-1"
                 >
                     {filteredCommands.length === 0 ? (
                         <div className="py-8 text-center text-xs text-zinc-500">
@@ -384,6 +393,7 @@ export function CommandPalette({
                                 <button
                                     key={cmd.id}
                                     type="button"
+                                    data-index={index}
                                     onClick={() => {
                                         cmd.onSelect();
                                         onClose();

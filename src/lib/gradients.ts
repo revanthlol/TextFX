@@ -10,11 +10,16 @@ export interface GradientPreset {
 
 export const GRADIENT_PRESETS: GradientPreset[] = [
   { id: 'sunset', name: 'Sunset Glow', from: '#FF512F', to: '#DD2476', angle: 45 },
+  { id: 'sunset-flare', name: 'Sunset Flare', from: '#FF512F', to: '#F09819', angle: 45 },
   { id: 'cyberpunk', name: 'Cyberpunk', from: '#00F260', to: '#0575E6', angle: 90 },
+  { id: 'cyber-neon', name: 'Cyber Neon', from: '#ff007f', to: '#00ffff', angle: 90 },
   { id: 'neon', name: 'Neon Horizon', from: '#FA709A', to: '#FEE140', angle: 45 },
   { id: 'emerald', name: 'Emerald Matrix', from: '#11998E', to: '#38EF7D', angle: 90 },
+  { id: 'northern-lights', name: 'Northern Lights', from: '#00ffaa', to: '#00bfff', angle: 90 },
   { id: 'gold', name: 'Gold Sovereign', from: '#F7971E', to: '#FFD200', angle: 45 },
+  { id: 'golden-hour', name: 'Golden Hour', from: '#F7971E', to: '#FFD200', angle: 45 },
   { id: 'cosmic', name: 'Cosmic Ocean', from: '#2E3192', to: '#1BFFFF', angle: 135 },
+  { id: 'deep-space', name: 'Deep Space', from: '#051119', to: '#112233', angle: 135 },
   { id: 'fire', name: 'Flaming Amber', from: '#F12711', to: '#F5AF19', angle: 90 },
   { id: 'violet', name: 'Ultra Violet', from: '#654ea3', to: '#eaafc8', angle: 45 },
   { id: 'terminal', name: 'Terminal Acid', from: '#56ab2f', to: '#a8e063', angle: 90 },
