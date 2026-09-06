@@ -27,21 +27,27 @@ const loadedPreviewFonts = new Set<string>();
 /**
  * Dynamically load Google Font preview CSS in browser
  * Uses CSS2 API with text parameter targeting only the font's own name
- * Results in microscopic ~500 byte payload for instant 60fps rendering
+ * Results in microscopic ~500 byte payload for instant rendering
+ * Skips on mobile (<768px) to keep mobile lightweight and prevent lag
  */
 export function loadFontPreview(fontFamily: string) {
   if (typeof window === 'undefined' || !fontFamily) return;
 
-  const cacheKey = fontFamily.trim().toLowerCase();
+  // On mobile devices / narrow screens, skip dynamic font loading to keep it super lightweight
+  if (window.innerWidth < 768) return;
+
+  const cleanFamily = fontFamily.trim();
+  const cacheKey = cleanFamily.toLowerCase();
   if (loadedPreviewFonts.has(cacheKey)) return;
 
   try {
-    const linkId = `font-preview-${encodeURIComponent(fontFamily)}`;
+    const linkId = `font-preview-${encodeURIComponent(cleanFamily)}`;
     let link = document.getElementById(linkId) as HTMLLinkElement | null;
     
     // Only request glyphs needed to render the font name itself + fallback chars
-    const uniqueChars = Array.from(new Set(`${fontFamily}AaBbCc0123456789`)).join('');
-    const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily.replace(/ /g, '+'))}:wght@400;600;700&text=${encodeURIComponent(uniqueChars)}&display=swap`;
+    const uniqueChars = Array.from(new Set(`${cleanFamily}AaBbCc0123456789`)).join('');
+    const familyParam = cleanFamily.replace(/ /g, '+');
+    const fontUrl = `https://fonts.googleapis.com/css2?family=${familyParam}&text=${encodeURIComponent(uniqueChars)}&display=swap`;
 
     if (!link) {
       link = document.createElement('link');

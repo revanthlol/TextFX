@@ -67,9 +67,19 @@ export function validateParams(params: URLSearchParams) {
     }
     
     // Background options
+    let backgroundType: 'transparent' | 'solid' | 'gradient' = DEFAULT_VALUES.backgroundType;
+    if (params.has('backgroundType')) {
+        const bt = params.get('backgroundType');
+        if (bt === 'transparent' || bt === 'solid' || bt === 'gradient') {
+            backgroundType = bt;
+        }
+    } else if (params.has('backgroundGradient') || params.get('bgGradient')) {
+        backgroundType = 'gradient';
+    } else if (params.has('backgroundColor') && params.get('backgroundColor') !== 'transparent') {
+        backgroundType = 'solid';
+    }
     const backgroundColor = params.get('backgroundColor') || DEFAULT_VALUES.backgroundColor;
     const backgroundOpacity = parseFloat(params.get('backgroundOpacity') || DEFAULT_VALUES.backgroundOpacity.toString());
-    const backgroundType = (params.get('backgroundType') as typeof DEFAULT_VALUES.backgroundType) || DEFAULT_VALUES.backgroundType;
     const bgGradient = params.get('backgroundGradient') || params.get('bgGradient') || DEFAULT_VALUES.bgGradient;
     const bgGradientAngle = parseInt(params.get('backgroundGradientAngle') || params.get('bgGradientAngle') || '90', 10);
     const borderRadius = parseInt(params.get('borderRadius') || DEFAULT_VALUES.borderRadius.toString(), 10);
