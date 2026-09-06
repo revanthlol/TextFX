@@ -30,7 +30,8 @@ import {
     BookOpen,
     FileJson,
     Upload,
-    FileCode
+    ExternalLink,
+    Code2
 } from 'lucide-react';
 import { FontCombobox } from './FontCombobox';
 import { AnimatedLogo } from './AnimatedLogo';
@@ -141,6 +142,28 @@ function SvgGenerator() {
     const { showToast } = useToast();
     const [isDarkMode, setIsDarkMode] = useState(true);
 
+    // Sync theme with localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('textfx_theme');
+            if (saved === 'light') {
+                setIsDarkMode(false);
+            } else {
+                setIsDarkMode(true);
+            }
+        }
+    }, []);
+
+    const toggleTheme = useCallback(() => {
+        setIsDarkMode(prev => {
+            const next = !prev;
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('textfx_theme', next ? 'dark' : 'light');
+            }
+            return next;
+        });
+    }, []);
+
     // Accordion states
     const [openSections, setOpenSections] = useState({
         text: true,
@@ -152,7 +175,7 @@ function SvgGenerator() {
 
     // Preview state
     const [previewMode, setPreviewMode] = useState<'github' | 'discord' | 'canvas'>('github');
-    const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light' | 'dimmed' | 'transparent'>('dark');
+    const [isCanvasTransparent, setIsCanvasTransparent] = useState(false);
     const [zoom, setZoom] = useState(100);
     const [isPreviewSheetOpen, setIsPreviewSheetOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -327,55 +350,76 @@ function SvgGenerator() {
             }
         }
 
-        // 3. Check legacy uncompressed params
+        // 3. Check legacy / docs uncompressed params
         const sharedFont = params.get('font') || DEFAULT_VALUES.font;
-        const sharedColor = params.get('color') || DEFAULT_VALUES.color;
-        const sharedFontSize = params.has('fontSize') ? parseInt(params.get('fontSize')!, 10) : DEFAULT_VALUES.fontSize;
+        let sharedColor = params.get('color') || DEFAULT_VALUES.color;
+        if (sharedColor && !sharedColor.startsWith('#') && /^[0-9a-fA-F]{3,8}$/.test(sharedColor)) {
+            sharedColor = `#${sharedColor}`;
+        }
+        const sharedFontSize = params.has('size')
+            ? parseInt(params.get('size')!, 10)
+            : params.has('fontSize')
+            ? parseInt(params.get('fontSize')!, 10)
+            : DEFAULT_VALUES.fontSize;
         const sharedLetterSpacing = params.get('letterSpacing') || DEFAULT_VALUES.letterSpacing;
-        const sharedTypingSpeed = params.has('typingSpeed') ? parseFloat(params.get('typingSpeed')!) : DEFAULT_VALUES.typingSpeed;
+        const sharedTypingSpeed = params.has('speed')
+            ? parseFloat(params.get('speed')!)
+            : params.has('typingSpeed')
+            ? parseFloat(params.get('typingSpeed')!)
+            : DEFAULT_VALUES.typingSpeed;
         const sharedDeleteSpeed = params.has('deleteSpeed') ? parseFloat(params.get('deleteSpeed')!) : DEFAULT_VALUES.deleteSpeed;
-        const sharedFontWeight = params.get('fontWeight') || DEFAULT_VALUES.fontWeight;
+        const sharedFontWeight = params.get('weight') || params.get('fontWeight') || DEFAULT_VALUES.fontWeight;
         const sharedLineHeight = params.has('lineHeight') ? parseFloat(params.get('lineHeight')!) : DEFAULT_VALUES.lineHeight;
         const sharedAnimationStyle = params.get('animationStyle') || DEFAULT_VALUES.animationStyle;
         const sharedGradient = params.get('gradient') || DEFAULT_VALUES.gradient;
 
         if (params.has('lines')) {
+            const rawLinesStr = params.get('lines')!;
+            let parsedLines: Partial<TextLine>[] = [];
             try {
-                const rawLines = JSON.parse(params.get('lines')!);
-                if (Array.isArray(rawLines) && rawLines.length > 0) {
-                    const parsed = rawLines.map((item: Partial<TextLine>) => ({
-                        text: typeof item.text === 'string' ? item.text : String(item || ''),
-                        font: item.font || sharedFont,
-                        color: item.color || sharedColor,
-                        fontSize: typeof item.fontSize === 'number' ? item.fontSize : sharedFontSize,
-                        letterSpacing: item.letterSpacing || sharedLetterSpacing,
-                        typingSpeed: typeof item.typingSpeed === 'number' ? item.typingSpeed : sharedTypingSpeed,
-                        deleteSpeed: typeof item.deleteSpeed === 'number' ? item.deleteSpeed : sharedDeleteSpeed,
-                        fontWeight: item.fontWeight || sharedFontWeight,
-                        lineHeight: typeof item.lineHeight === 'number' ? item.lineHeight : sharedLineHeight,
-                        animationStyle: item.animationStyle || sharedAnimationStyle,
-                        gradient: item.gradient || sharedGradient,
-                    }));
-                    setTextLines(parsed);
+                const jsonParsed = JSON.parse(rawLinesStr);
+                if (Array.isArray(jsonParsed) && jsonParsed.length > 0) {
+                    parsedLines = jsonParsed;
                 }
             } catch {
-                // fall through
+                // Semicolon-separated format from docs & API: "Line 1;Line 2;Line 3"
+                parsedLines = rawLinesStr.split(';').map(t => ({ text: t.trim() })).filter(l => l.text);
+            }
+
+            if (parsedLines.length > 0) {
+                const mapped = parsedLines.map((item: Partial<TextLine>) => ({
+                    text: typeof item.text === 'string' ? item.text : String(item || ''),
+                    font: item.font || sharedFont,
+                    color: item.color || sharedColor,
+                    fontSize: typeof item.fontSize === 'number' ? item.fontSize : sharedFontSize,
+                    letterSpacing: item.letterSpacing || sharedLetterSpacing,
+                    typingSpeed: typeof item.typingSpeed === 'number' ? item.typingSpeed : sharedTypingSpeed,
+                    deleteSpeed: typeof item.deleteSpeed === 'number' ? item.deleteSpeed : sharedDeleteSpeed,
+                    fontWeight: item.fontWeight || sharedFontWeight,
+                    lineHeight: typeof item.lineHeight === 'number' ? item.lineHeight : sharedLineHeight,
+                    animationStyle: item.animationStyle || sharedAnimationStyle,
+                    gradient: item.gradient || sharedGradient,
+                }));
+                setTextLines(mapped);
             }
         }
 
         if (params.has('width')) setWidth(parseInt(params.get('width')!, 10));
         if (params.has('height')) setHeight(parseInt(params.get('height')!, 10));
         
+        const bgParam = params.get('background') || params.get('backgroundColor');
         if (params.has('backgroundType')) {
             const bt = params.get('backgroundType');
             if (bt === 'transparent' || bt === 'solid' || bt === 'gradient') setBackgroundType(bt);
         } else if (params.has('backgroundGradient')) {
             setBackgroundType('gradient');
-        } else if (params.has('backgroundColor') && params.get('backgroundColor') !== 'transparent') {
+        } else if (bgParam === 'transparent') {
+            setBackgroundType('transparent');
+        } else if (bgParam) {
             setBackgroundType('solid');
+            setBackgroundColor(bgParam.startsWith('#') || !/^[0-9a-fA-F]{3,8}$/.test(bgParam) ? bgParam : `#${bgParam}`);
         }
 
-        if (params.has('backgroundColor')) setBackgroundColor(params.get('backgroundColor')!);
         if (params.has('backgroundGradient')) setBackgroundGradient(params.get('backgroundGradient')!);
         if (params.has('backgroundGradientAngle')) setBackgroundGradientAngle(parseInt(params.get('backgroundGradientAngle')!, 10));
         
@@ -387,7 +431,8 @@ function SvgGenerator() {
             const val = params.get('vAlign');
             if (val === 'top' || val === 'center' || val === 'bottom') setVAlign(val);
         }
-        if (params.has('cursorChar')) setCursorChar(params.get('cursorChar')!);
+        const cursorParam = params.get('cursor') || params.get('cursorChar');
+        if (cursorParam !== null) setCursorChar(cursorParam);
         if (params.has('cursorColor')) setCursorColor(params.get('cursorColor')!);
         if (params.has('cursorBlinkSpeed')) setCursorBlinkSpeed(parseFloat(params.get('cursorBlinkSpeed')!));
         if (params.has('hideCursorOnComplete')) setHideCursorOnComplete(params.get('hideCursorOnComplete') === 'true');
@@ -592,14 +637,10 @@ function SvgGenerator() {
 
     // Canvas background style helper
     const getCanvasBgClass = () => {
-        switch (canvasTheme) {
-            case 'light': return 'bg-white text-zinc-900 border-zinc-200';
-            case 'dimmed': return 'bg-[#161b22] text-[#c9d1d9] border-[#30363d]';
-            case 'transparent': return 'bg-checkered text-white border-zinc-800';
-            case 'dark':
-            default:
-                return 'bg-[#0d1117] text-[#c9d1d9] border-[#30363d]';
-        }
+        if (isCanvasTransparent) return 'bg-checkered text-white border-zinc-800';
+        return isDarkMode 
+            ? 'bg-[#0d1117] text-[#c9d1d9] border-[#30363d]' 
+            : 'bg-[#f6f8fa] text-zinc-900 border-zinc-200';
     };
 
     // Export JSON configuration file
@@ -761,9 +802,9 @@ function SvgGenerator() {
 
                         <button
                             type="button"
-                            onClick={() => setIsDarkMode(!isDarkMode)}
+                            onClick={toggleTheme}
                             className={`p-1.5 rounded-md border text-xs transition-colors ${
-                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100'
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 shadow-sm'
                             }`}
                             title="Toggle Theme"
                         >
@@ -1338,26 +1379,20 @@ function SvgGenerator() {
                                 </div>
 
                                 {/* Canvas Background Switcher */}
-                                <div className="flex items-center gap-1">
-                                    <span className="text-[10px] uppercase font-semibold text-zinc-500 mr-1">
-                                        Backdrop:
-                                    </span>
-                                    {(['dark', 'light', 'dimmed', 'transparent'] as const).map(theme => (
-                                        <button
-                                            key={theme}
-                                            type="button"
-                                            onClick={() => setCanvasTheme(theme)}
-                                            className={`px-2 py-0.5 rounded text-[11px] font-medium capitalize transition-all border ${
-                                                canvasTheme === theme
-                                                    ? 'bg-zinc-100 text-zinc-950 border-zinc-200 font-semibold'
-                                                    : isDarkMode
-                                                        ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
-                                                        : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100'
-                                            }`}
-                                        >
-                                            {theme}
-                                        </button>
-                                    ))}
+                                <div className="flex items-center gap-2">
+                                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={isCanvasTransparent}
+                                            onChange={(e) => setIsCanvasTransparent(e.target.checked)}
+                                            className="rounded border-zinc-700 text-emerald-500 focus:ring-emerald-500/20 bg-zinc-900 w-3.5 h-3.5 cursor-pointer accent-emerald-500"
+                                        />
+                                        <span className={`text-[11px] font-medium transition-colors ${
+                                            isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                                        }`}>
+                                            Transparent Canvas
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
 
@@ -1371,7 +1406,7 @@ function SvgGenerator() {
                                                 svgUrl={svgUrl}
                                                 width={width}
                                                 height={height}
-                                                isDarkMode={isDarkMode || canvasTheme === 'dark' || canvasTheme === 'dimmed' || canvasTheme === 'transparent'}
+                                                isDarkMode={isDarkMode}
                                             />
                                         </div>
                                     </div>
@@ -1488,18 +1523,20 @@ function SvgGenerator() {
                                 {/* Markdown */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-medium text-zinc-400">GitHub README (Markdown)</span>
+                                        <span className={`font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-700'}`}>GitHub README (Markdown)</span>
                                         <button
                                             type="button"
                                             onClick={() => handleCopy(`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`, 'md', 'Markdown')}
-                                            className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
+                                            className={`flex items-center gap-1 font-medium transition-colors ${
+                                                isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900'
+                                            }`}
                                         >
-                                            {copiedKey === 'md' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            {copiedKey === 'md' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                                             <span>{copiedKey === 'md' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
                                     <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
-                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
+                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-900 font-medium'
                                     }`}>
                                         {`[![TextFX](${absoluteSvgUrl})](https://github.com/revanthlol/TextFX)`}
                                     </div>
@@ -1508,18 +1545,20 @@ function SvgGenerator() {
                                 {/* HTML <img> */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-medium text-zinc-400">HTML &lt;img&gt; Tag</span>
+                                        <span className={`font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-700'}`}>HTML &lt;img&gt; Tag</span>
                                         <button
                                             type="button"
                                             onClick={() => handleCopy(`<img src="${absoluteSvgUrl}" alt="TextFX Animation" width="${width}" height="${height}" />`, 'html', 'HTML Tag')}
-                                            className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
+                                            className={`flex items-center gap-1 font-medium transition-colors ${
+                                                isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900'
+                                            }`}
                                         >
-                                            {copiedKey === 'html' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            {copiedKey === 'html' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                                             <span>{copiedKey === 'html' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
                                     <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
-                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
+                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-900 font-medium'
                                     }`}>
                                         {`<img src="${absoluteSvgUrl}" alt="TextFX Animation" width="${width}" height="${height}" />`}
                                     </div>
@@ -1528,45 +1567,49 @@ function SvgGenerator() {
                                 {/* React / Next.js JSX */}
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="font-medium text-zinc-400">React / Next.js JSX</span>
+                                        <span className={`font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-700'}`}>React / Next.js JSX</span>
                                         <button
                                             type="button"
                                             onClick={() => handleCopy(`<Image src="${absoluteSvgUrl}" alt="TextFX Animation" width={${width}} height={${height}} unoptimized />`, 'jsx', 'React JSX')}
-                                            className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1 font-medium"
+                                            className={`flex items-center gap-1 font-medium transition-colors ${
+                                                isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900'
+                                            }`}
                                         >
-                                            {copiedKey === 'jsx' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            {copiedKey === 'jsx' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                                             <span>{copiedKey === 'jsx' ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
                                     <div className={`p-2.5 rounded-md font-mono text-xs break-all select-all border ${
-                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
+                                        isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-900 font-medium'
                                     }`}>
                                         {`<Image src="${absoluteSvgUrl}" alt="TextFX Animation" width={${width}} height={${height}} unoptimized />`}
                                     </div>
                                 </div>
 
                                 {/* Direct SVG URL & Raw XML */}
-                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800/60">
+                                <div className={`grid grid-cols-2 gap-2 pt-2 border-t ${
+                                    isDarkMode ? 'border-zinc-800/60' : 'border-zinc-200'
+                                }`}>
                                     <button
                                         type="button"
                                         onClick={() => handleCopy(absoluteSvgUrl, 'url', 'Direct SVG URL')}
-                                        className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-                                            isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                        className={`py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                            isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100'
                                         }`}
                                     >
-                                        {copiedKey === 'url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                        <span>Copy API URL</span>
+                                        {copiedKey === 'url' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />}
+                                        <span className="truncate">{copiedKey === 'url' ? 'Copied URL' : 'Copy Direct URL'}</span>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={handleCopyRawSvg}
-                                        className={`py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-                                            isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                        className={`py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                            isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-white' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100'
                                         }`}
                                     >
-                                        {copiedKey === 'raw-svg' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileCode className="w-3.5 h-3.5" />}
-                                        <span>Copy Raw SVG XML</span>
+                                        {copiedKey === 'raw' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Code2 className="w-3.5 h-3.5 text-zinc-400" />}
+                                        <span className="truncate">{copiedKey === 'raw' ? 'Copied XML' : 'Copy Raw SVG'}</span>
                                     </button>
                                 </div>
 
@@ -1749,7 +1792,7 @@ function SvgGenerator() {
                 onOpenShare={() => setIsShareModalOpen(true)}
                 onShareConfig={() => handleCopy(studioShareUrl, 'cmd-share', 'Share URL')}
                 onReset={resetToDefaults}
-                onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+                onToggleTheme={toggleTheme}
                 isDarkMode={isDarkMode}
             />
 

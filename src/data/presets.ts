@@ -139,57 +139,6 @@ export const PRESETS: TextFXPreset[] = [
         }
     },
     {
-        id: 'sunset-glow',
-        name: 'Sunset Flare',
-        iconName: 'Sun',
-        description: 'Vibrant warm sunrise gradient with playful wave motion',
-        lines: [
-            {
-                text: 'Crafting Beautiful Web Experiences',
-                font: 'Caveat',
-                color: '#ff4b1f',
-                fontSize: 34,
-                letterSpacing: '0.05em',
-                typingSpeed: 0.06,
-                deleteSpeed: 0.04,
-                fontWeight: '600',
-                lineHeight: 1.3,
-                animationStyle: 'wave',
-                gradient: 'sunset-flare'
-            },
-            {
-                text: 'Designed with Precision & Passion',
-                font: 'Caveat',
-                color: '#ff4b1f',
-                fontSize: 34,
-                letterSpacing: '0.05em',
-                typingSpeed: 0.06,
-                deleteSpeed: 0.04,
-                fontWeight: '600',
-                lineHeight: 1.3,
-                animationStyle: 'wave',
-                gradient: 'sunset-flare'
-            }
-        ],
-        canvas: {
-            width: 620,
-            height: 110,
-            backgroundType: 'transparent',
-            backgroundColor: '#ffffff',
-            backgroundGradient: '',
-            backgroundGradientAngle: 90,
-            hAlign: 'center',
-            vAlign: 'middle',
-            cursorChar: '',
-            cursorColor: '',
-            cursorBlinkSpeed: 600,
-            hideCursorOnComplete: true,
-            pauseDuration: 2,
-            loop: true,
-            vanishBeforeNextLine: true
-        }
-    },
-    {
         id: 'modern-dev',
         name: 'Modern Dev',
         iconName: 'Briefcase',

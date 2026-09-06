@@ -243,6 +243,32 @@ export default function ApiDocsPage() {
     const [activeTab, setActiveTab] = useState<'markdown' | 'html' | 'curl' | 'javascript' | 'python' | 'nextjs'>('markdown');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+    // Sync theme with localStorage
+    React.useEffect(() => {
+        try {
+            const saved = localStorage.getItem('textfx_theme');
+            if (saved === 'light') {
+                setIsDarkMode(false);
+            } else {
+                setIsDarkMode(true);
+            }
+        } catch {
+            // ignore fallback
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        setIsDarkMode(prev => {
+            const next = !prev;
+            try {
+                localStorage.setItem('textfx_theme', next ? 'dark' : 'light');
+            } catch {
+                // ignore
+            }
+            return next;
+        });
+    };
+
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://textfx.dev';
 
     const handleCopy = (text: string, key: string) => {
@@ -310,9 +336,9 @@ export function AnimatedBanner() {
                     <div className="flex items-center gap-3">
                         <button
                             type="button"
-                            onClick={() => setIsDarkMode(!isDarkMode)}
+                            onClick={toggleTheme}
                             className={`p-2 rounded-lg border text-xs transition-colors ${
-                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100'
+                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 shadow-sm'
                             }`}
                             aria-label="Toggle Theme"
                         >
@@ -503,19 +529,19 @@ export function AnimatedBanner() {
                                 <tbody className={`divide-y ${isDarkMode ? 'divide-zinc-800/60' : 'divide-zinc-200'}`}>
                                     {filteredParams.map((param) => (
                                         <tr key={param.name} className={`hover:bg-zinc-500/5 transition-colors`}>
-                                            <td className="px-4 py-3 font-mono font-semibold text-emerald-400">
+                                            <td className="px-4 py-3 font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                                                 {param.name}
                                             </td>
-                                            <td className="px-4 py-3 font-mono text-[11px] text-zinc-400">
+                                            <td className={`px-4 py-3 font-mono text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                                 {param.type}
                                             </td>
-                                            <td className="px-4 py-3 font-mono text-[11px] text-zinc-400">
+                                            <td className={`px-4 py-3 font-mono text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                                 {param.defaultVal}
                                             </td>
                                             <td className={`px-4 py-3 text-xs ${isDarkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>
                                                 {param.description}
                                             </td>
-                                            <td className="px-4 py-3 font-mono text-[11px] text-zinc-400 truncate max-w-xs">
+                                            <td className={`px-4 py-3 font-mono text-[11px] truncate max-w-xs ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                                                 {param.example}
                                             </td>
                                         </tr>
@@ -556,7 +582,9 @@ export function AnimatedBanner() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-semibold text-sm">{example.title}</h3>
-                                            <span className="text-[10px] px-2 py-0.5 rounded border border-zinc-700 bg-zinc-800 text-zinc-300 font-mono">
+                                            <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+                                                isDarkMode ? 'border border-zinc-700 bg-zinc-800 text-zinc-300' : 'border border-zinc-200 bg-zinc-100 text-zinc-700'
+                                            }`}>
                                                 Preset
                                             </span>
                                         </div>
@@ -578,12 +606,14 @@ export function AnimatedBanner() {
                                     </div>
 
                                     {/* Action Buttons */}
-                                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800/40 text-xs">
+                                    <div className={`flex items-center justify-between gap-2 pt-2 border-t text-xs ${
+                                        isDarkMode ? 'border-zinc-800/40' : 'border-zinc-200'
+                                    }`}>
                                         <button
                                             type="button"
                                             onClick={() => handleCopy(`[![TextFX](${fullSvgUrl})](https://github.com/revanthlol/TextFX)`, `ex-md-${idx}`)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-medium transition-all ${
-                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700'
+                                                isDarkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white' : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 shadow-sm'
                                             }`}
                                         >
                                             {copiedKey === `ex-md-${idx}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Check, Info, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ToastContextType {
     showToast: (message: string, iconType?: 'check' | 'sparkles' | 'info') => void;
@@ -27,21 +28,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return (
         <ToastContext.Provider value={{ showToast }}>
             {children}
-            {toast && (
-                <div 
-                    role="status"
-                    className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-zinc-900/95 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-xl border border-zinc-800 dark:border-zinc-300 text-xs font-medium backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-150"
-                >
-                    {toast.iconType === 'sparkles' ? (
-                        <Sparkles className="w-4 h-4 text-amber-400 dark:text-amber-600 flex-shrink-0" />
-                    ) : toast.iconType === 'info' ? (
-                        <Info className="w-4 h-4 text-blue-400 dark:text-blue-600 flex-shrink-0" />
-                    ) : (
-                        <Check className="w-4 h-4 text-emerald-400 dark:text-emerald-600 flex-shrink-0" />
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+                <AnimatePresence mode="wait">
+                    {toast && (
+                        <motion.div 
+                            key={toast.id}
+                            role="status"
+                            initial={{ opacity: 0, y: 20, scale: 0.92 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 12, scale: 0.92 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 380 }}
+                            className="pointer-events-auto flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-zinc-950/90 text-zinc-100 border border-zinc-800 shadow-[0_12px_32px_rgba(0,0,0,0.5)] backdrop-blur-md text-xs font-medium"
+                        >
+                            {toast.iconType === 'sparkles' ? (
+                                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                            ) : toast.iconType === 'info' ? (
+                                <Info className="w-4 h-4 text-sky-400 shrink-0" />
+                            ) : (
+                                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                            )}
+                            <span className="tracking-wide select-none">{toast.message}</span>
+                        </motion.div>
                     )}
-                    <span>{toast.message}</span>
-                </div>
-            )}
+                </AnimatePresence>
+            </div>
         </ToastContext.Provider>
     );
 }
